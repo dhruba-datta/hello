@@ -225,16 +225,19 @@ impl Paster {
         commit: impl FnOnce() -> bool,
     ) -> Result<()> {
         let revision = self.activity.revision();
-        let text = self
-            .continuation
-            .as_ref()
-            .filter(|continuation| {
-                !matches!(mode, PasteMode::Standalone) && continuation.revision == revision
-            })
-            .map_or_else(
-                || text.to_string(),
-                |continuation| join(&continuation.inserted, text),
-            );
+        let continuation = self.continuation.as_ref().filter(|continuation| {
+            !matches!(mode, PasteMode::Standalone) && continuation.revision == revision
+        });
+        let text = match continuation {
+            Some(continuation) => join(&continuation.inserted, text),
+            // After a click or typing, the text before the caret decides the space
+            // and capital letter, when the app exposes it.
+            None if !matches!(mode, PasteMode::Standalone) => {
+                crate::accessibility::text_before_caret(CARET_CONTEXT)
+                    .map_or_else(|| text.to_string(), |before| join_after(&before, text))
+            }
+            None => text.to_string(),
+        };
         let generation = commit_prepared_paste(
             || {
                 let restore = self
@@ -583,6 +586,19 @@ fn cf_data(value: CfDataRef) -> Result<Vec<u8>> {
     Ok(unsafe { std::slice::from_raw_parts(bytes, length as usize) }.to_vec())
 }
 
+/// Characters read before the caret: enough to see the last word and its punctuation.
+const CARET_CONTEXT: usize = 16;
+
+/// Joins `next` to text already in the field. At the start of the field or a line,
+/// `next` keeps its own capitalization.
+fn join_after(before: &str, next: &str) -> String {
+    if before.trim_end_matches([' ', '\t']).is_empty() || before.ends_with('\n') {
+        next.to_string()
+    } else {
+        join(before, next)
+    }
+}
+
 fn join(previous: &str, next: &str) -> String {
     let sentence_start = ends_sentence(previous);
     let mut next = set_initial_case(next, sentence_start);
@@ -603,7 +619,7 @@ fn join(previous: &str, next: &str) -> String {
 fn ends_sentence(text: &str) -> bool {
     text.trim_end()
         .trim_end_matches(['\'', '"', ')', ']', '}'])
-        .ends_with(['.', '?', '!'])
+        .ends_with(['.', '?', '!', '\u{0964}'])
 }
 
 fn is_opening(character: char) -> bool {
@@ -826,6 +842,17 @@ mod tests {
         );
         assert_eq!(join("Already spaced. ", "Next sentence."), "Next sentence.");
         assert_eq!(join("Hello", ", world."), ", world.");
+    }
+
+    #[test]
+    fn spaces_a_new_dictation_from_the_text_before_the_caret() {
+        assert_eq!(join_after("", "Hello there."), "Hello there.");
+        assert_eq!(join_after("   ", "Hello there."), "Hello there.");
+        assert_eq!(join_after("Dear Sam,\n", "Thanks."), "Thanks.");
+        assert_eq!(join_after("we met today.", "next steps."), " Next steps.");
+        assert_eq!(join_after("we met today. ", "Next steps."), "Next steps.");
+        assert_eq!(join_after("আমি আসছি।", "ঠিক আছে।"), " ঠিক আছে।");
+        assert_eq!(join_after("(", "note"), "note");
     }
 
     #[test]

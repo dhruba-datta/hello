@@ -1026,7 +1026,7 @@ pub struct AppWindow {
     menu_bar_icon_toggle: ToggleSpring,
     profile_name: ProcessingInput,
     appearance_clock: Instant,
-    smart_editing_toggles: [ToggleSpring; 4],
+    smart_editing_toggles: [ToggleSpring; 5],
     transcription_hints: ProcessingInput,
     transcription_picker_language: Option<String>,
     transcription_status: PreparationStatus,
@@ -2762,7 +2762,7 @@ impl AppWindow {
             .into_iter()
             .enumerate()
         {
-            // The profile has its own card above the list.
+            // The profile has its own card at the bottom of the sidebar.
             if pane == Pane::Profile {
                 continue;
             }
@@ -2784,7 +2784,7 @@ impl AppWindow {
         let profile_card = div()
             .id("sidebar-profile")
             .flex_none()
-            .mb_2()
+            .mt_3()
             .p(px(8.0))
             .flex()
             .items_center()
@@ -2835,7 +2835,6 @@ impl AppWindow {
             .pb_4()
             .flex()
             .flex_col()
-            .child(profile_card)
             .children(groups.into_iter().map(|(group, items)| {
                 div()
                     .flex()
@@ -2854,25 +2853,12 @@ impl AppWindow {
                     .children(items)
             }))
             .child(div().flex_1())
-            .child(
-                div()
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_2()
-                    .h(px(30.0))
-                    .mt_3()
-                    .child(
-                        div()
-                            .flex_none()
-                            .pl_2()
-                            .text_size(px(11.0))
-                            .text_color(rgba(crate::desktop_ui::SIDEBAR_SECONDARY))
-                            .child(format!("Version {APP_VERSION}")),
-                    )
-                    .children(sidebar_update_button(self.update_status, self.preview)),
+            // The version lives on the Profile page; the sidebar only flags an update.
+            .children(
+                sidebar_update_button(self.update_status, self.preview)
+                    .map(|button| button.mt_3().justify_center()),
             )
+            .child(profile_card)
             .into_any_element()
     }
 
@@ -3135,6 +3121,19 @@ impl AppWindow {
                                 .w(px(260.0))
                                 .flex_none()
                                 .child(self.profile_name.entity.clone()),
+                        )
+                        .border_b_0(),
+                    ),
+                )
+                .child(settings_section_label("ABOUT HELLO"))
+                .child(
+                    settings_panel().child(
+                        settings_row(
+                            "Version",
+                            format!("Hello {APP_VERSION}. Checks for updates once a day"),
+                            div()
+                                .flex_none()
+                                .children(about_update_button(self.update_status, self.preview)),
                         )
                         .border_b_0(),
                     ),
@@ -9168,7 +9167,7 @@ fn recording_audio_index(behavior: RecordingAudioBehavior) -> usize {
     }
 }
 
-const SMART_EDITING_ROWS: [(&str, &str); 4] = [
+const SMART_EDITING_ROWS: [(&str, &str); 5] = [
     ("Remove filler words", "Drop um, uh, and erm from dictation"),
     (
         "Scratch that",
@@ -9182,23 +9181,29 @@ const SMART_EDITING_ROWS: [(&str, &str); 4] = [
         "Numbered lists",
         "Say \u{201c}number one\u{2026} number two\u{2026}\u{201d} to make a list",
     ),
+    (
+        "End with a full stop",
+        "Add a full stop when you stop mid-sentence",
+    ),
 ];
 
-fn smart_editing_flags(options: SmartEditing) -> [bool; 4] {
+fn smart_editing_flags(options: SmartEditing) -> [bool; 5] {
     [
         options.remove_fillers,
         options.scratch_that,
         options.spoken_line_breaks,
         options.numbered_lists,
+        options.end_with_period,
     ]
 }
 
-fn smart_editing_from_flags(flags: [bool; 4]) -> SmartEditing {
+fn smart_editing_from_flags(flags: [bool; 5]) -> SmartEditing {
     SmartEditing {
         remove_fillers: flags[0],
         scratch_that: flags[1],
         spoken_line_breaks: flags[2],
         numbered_lists: flags[3],
+        end_with_period: flags[4],
     }
 }
 
@@ -9371,7 +9376,7 @@ fn format_count(count: usize) -> String {
 
 /// Hello's own release number. The engine underneath keeps its upstream
 /// version (CARGO_PKG_VERSION) for local API and SDK compatibility.
-const APP_VERSION: &str = "1.0.1";
+const APP_VERSION: &str = "1.0.2";
 
 fn indicator_position_index(position: IndicatorPosition) -> usize {
     match position {

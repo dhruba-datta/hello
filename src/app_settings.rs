@@ -21,6 +21,7 @@ static SMART_EDITING: AtomicU8 = AtomicU8::new(smart_editing_bits(SmartEditing {
     scratch_that: true,
     spoken_line_breaks: true,
     numbered_lists: true,
+    end_with_period: true,
 }));
 static DOUBLE_TAP_LOCK: AtomicBool = AtomicBool::new(true);
 static DOUBLE_TAP_ONLY: AtomicBool = AtomicBool::new(false);
@@ -1164,6 +1165,7 @@ const fn smart_editing_bits(options: SmartEditing) -> u8 {
         | ((options.scratch_that as u8) << 1)
         | ((options.spoken_line_breaks as u8) << 2)
         | ((options.numbered_lists as u8) << 3)
+        | ((options.end_with_period as u8) << 4)
 }
 
 pub fn smart_editing() -> SmartEditing {
@@ -1173,6 +1175,7 @@ pub fn smart_editing() -> SmartEditing {
         scratch_that: bits & 2 != 0,
         spoken_line_breaks: bits & 4 != 0,
         numbered_lists: bits & 8 != 0,
+        end_with_period: bits & 16 != 0,
     }
 }
 
@@ -1608,6 +1611,7 @@ mod tests {
             scratch_that: false,
             spoken_line_breaks: true,
             numbered_lists: false,
+            end_with_period: true,
         };
         let bits = smart_editing_bits(options);
         SMART_EDITING.store(bits, Ordering::Relaxed);

@@ -1926,7 +1926,8 @@ mod tests {
                 );
                 assert!(loaded.get());
                 assert_eq!(stage_sent.get(), !transformations.is_empty());
-                assert_eq!(processed.text, "raw instruction");
+                // Smart editing (on by default) ends the dictation with a full stop.
+                assert_eq!(processed.text, "raw instruction.");
                 assert_eq!(processed.transformations, transformations);
             }
         }

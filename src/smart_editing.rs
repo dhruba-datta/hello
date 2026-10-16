@@ -1,5 +1,6 @@
 //! Local, deterministic cleanup of a dictated transcript before mode processing:
-//! filler-word removal, "scratch that", spoken line breaks, and numbered lists.
+//! filler-word removal, "scratch that", spoken line breaks, numbered lists, and a
+//! closing full stop.
 //! Everything here is offline rule-based text processing; no model or network.
 
 use std::sync::OnceLock;
@@ -18,6 +19,8 @@ pub struct SmartEditing {
     pub spoken_line_breaks: bool,
     /// "number one … number two …" becomes a numbered list.
     pub numbered_lists: bool,
+    /// A dictation that stops mid-sentence ends with a full stop ("।" after Bangla).
+    pub end_with_period: bool,
 }
 
 impl Default for SmartEditing {
@@ -27,6 +30,7 @@ impl Default for SmartEditing {
             scratch_that: true,
             spoken_line_breaks: true,
             numbered_lists: true,
+            end_with_period: true,
         }
     }
 }
@@ -39,11 +43,16 @@ impl SmartEditing {
             scratch_that: false,
             spoken_line_breaks: false,
             numbered_lists: false,
+            end_with_period: false,
         }
     }
 
     pub const fn is_enabled(self) -> bool {
-        self.remove_fillers || self.scratch_that || self.spoken_line_breaks || self.numbered_lists
+        self.remove_fillers
+            || self.scratch_that
+            || self.spoken_line_breaks
+            || self.numbered_lists
+            || self.end_with_period
     }
 }
 
@@ -64,7 +73,32 @@ pub fn apply(text: &str, options: SmartEditing) -> String {
     if options.numbered_lists {
         text = apply_numbered_list(&text);
     }
-    tidy(&text)
+    let text = tidy(&text);
+    if options.end_with_period {
+        end_sentence(&text)
+    } else {
+        text
+    }
+}
+
+/// Bangla letters, vowel signs and digits (U+0980–U+09FF).
+fn is_bangla(character: char) -> bool {
+    ('\u{0980}'..='\u{09FF}').contains(&character)
+}
+
+/// Adds a full stop when the text ends in a word, so the next dictation starts a new
+/// sentence. Bangla takes the dari ("।"). Text ending in punctuation is left alone.
+fn end_sentence(text: &str) -> String {
+    let Some(last) = text.chars().next_back() else {
+        return text.to_string();
+    };
+    if is_bangla(last) {
+        format!("{text}\u{0964}")
+    } else if last.is_alphanumeric() {
+        format!("{text}.")
+    } else {
+        text.to_string()
+    }
 }
 
 fn is_sentence_end(character: char) -> bool {
@@ -324,8 +358,33 @@ fn tidy(text: &str) -> String {
 mod tests {
     use super::*;
 
+    /// Every rule except the closing full stop, which has its own tests.
     fn all(text: &str) -> String {
-        apply(text, SmartEditing::default())
+        apply(
+            text,
+            SmartEditing {
+                end_with_period: false,
+                ..SmartEditing::default()
+            },
+        )
+    }
+
+    #[test]
+    fn ends_an_unfinished_sentence_with_a_full_stop() {
+        let options = SmartEditing::default();
+        assert_eq!(apply("I will call you", options), "I will call you.");
+        assert_eq!(apply("Are you coming?", options), "Are you coming?");
+        assert_eq!(apply("Done.", options), "Done.");
+        assert_eq!(apply("um", options), "");
+        assert_eq!(apply("call me at 5", options), "call me at 5.");
+        assert_eq!(apply("আমি আসছি", options), "আমি আসছি।");
+        assert_eq!(apply("আমি আসছি।", options), "আমি আসছি।");
+        assert_eq!(apply("কালকে meeting", options), "কালকে meeting.");
+        let only_period = SmartEditing {
+            end_with_period: true,
+            ..SmartEditing::disabled()
+        };
+        assert_eq!(apply("see you soon ", only_period), "see you soon.");
     }
 
     #[test]
@@ -416,7 +475,7 @@ mod tests {
         assert_eq!(decoded, SmartEditing::default());
         assert!(decoded.is_enabled());
         let off: SmartEditing =
-            serde_json::from_str(r#"{"remove_fillers":false,"scratch_that":false,"spoken_line_breaks":false,"numbered_lists":false}"#)
+            serde_json::from_str(r#"{"remove_fillers":false,"scratch_that":false,"spoken_line_breaks":false,"numbered_lists":false,"end_with_period":false}"#)
                 .unwrap();
         assert!(!off.is_enabled());
     }

@@ -8,6 +8,15 @@ type CfStringRef = *const c_void;
 type AxUiElementRef = *const c_void;
 
 const CF_STRING_ENCODING_UTF8: u32 = 0x0800_0100;
+/// `kAXValueTypeCFRange`.
+const AX_VALUE_CF_RANGE: u32 = 4;
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+struct CfRange {
+    location: isize,
+    length: isize,
+}
 
 #[link(name = "ApplicationServices", kind = "framework")]
 unsafe extern "C" {
@@ -18,6 +27,15 @@ unsafe extern "C" {
         value: *mut CfTypeRef,
     ) -> i32;
     fn AXUIElementSetMessagingTimeout(element: AxUiElementRef, timeout_in_seconds: f32) -> i32;
+    fn AXUIElementCreateSystemWide() -> AxUiElementRef;
+    fn AXUIElementCopyParameterizedAttributeValue(
+        element: AxUiElementRef,
+        parameterized_attribute: CfStringRef,
+        parameter: CfTypeRef,
+        result: *mut CfTypeRef,
+    ) -> i32;
+    fn AXValueCreate(value_type: u32, value: *const c_void) -> CfTypeRef;
+    fn AXValueGetValue(value: CfTypeRef, value_type: u32, value: *mut c_void) -> bool;
 }
 
 #[link(name = "CoreFoundation", kind = "framework")]
@@ -42,6 +60,13 @@ unsafe extern "C" {
     fn CFArrayGetTypeID() -> usize;
     fn CFArrayGetCount(array: CfTypeRef) -> isize;
     fn CFArrayGetValueAtIndex(array: CfTypeRef, index: isize) -> CfTypeRef;
+}
+
+/// Up to `limit` characters (UTF-16 units) right before the caret in the focused text
+/// field, read locally and never stored. An empty string means the caret is at the
+/// start. `None` when the app doesn't expose its text (secure fields, some web views).
+pub fn text_before_caret(limit: usize) -> Option<String> {
+    capture_text_before_caret(limit).ok()
 }
 
 pub fn focused_window_title(pid: i32) -> Option<String> {
@@ -222,6 +247,57 @@ fn capture_focused_window_title(pid: i32) -> Result<String> {
         "the foreground window does not expose a title",
     )?;
     cf_string(title.0)
+}
+
+fn capture_text_before_caret(limit: usize) -> Result<String> {
+    // SAFETY: The create/copy APIs return retained Core Foundation objects.
+    let system = bounded_element(
+        unsafe { AXUIElementCreateSystemWide() },
+        "could not inspect the focused application",
+        "could not bound communication with the focused application",
+    )?;
+    let focused = copy_attribute(
+        &system,
+        c"AXFocusedUIElement",
+        "no element has keyboard focus",
+    )?;
+    if unsafe { AXUIElementSetMessagingTimeout(focused.0, 0.25) } != 0 {
+        return Err(eyre!(
+            "could not bound communication with the focused element"
+        ));
+    }
+    let selection = copy_attribute(
+        &focused,
+        c"AXSelectedTextRange",
+        "the focused element has no text selection",
+    )?;
+    let mut caret = CfRange::default();
+    if !unsafe { AXValueGetValue(selection.0, AX_VALUE_CF_RANGE, (&raw mut caret).cast()) } {
+        return Err(eyre!("the text selection has an unexpected type"));
+    }
+    if caret.location <= 0 {
+        return Ok(String::new());
+    }
+    let start = caret.location.saturating_sub(limit as isize).max(0);
+    let range = CfRange {
+        location: start,
+        length: caret.location - start,
+    };
+    let parameter = unsafe { AXValueCreate(AX_VALUE_CF_RANGE, (&raw const range).cast()) };
+    if parameter.is_null() {
+        return Err(eyre!("could not describe the text range"));
+    }
+    let parameter = CfObject(parameter);
+    let attribute = CfObject(cf_string_literal(c"AXStringForRange")?);
+    let mut value = ptr::null();
+    let status = unsafe {
+        AXUIElementCopyParameterizedAttributeValue(focused.0, attribute.0, parameter.0, &mut value)
+    };
+    if status != 0 || value.is_null() {
+        return Err(eyre!("the focused element does not expose its text"));
+    }
+    let value = CfObject(value);
+    cf_string(value.0)
 }
 
 fn cf_string_literal(value: &std::ffi::CStr) -> Result<CfStringRef> {

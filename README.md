@@ -18,7 +18,8 @@ understands **Bangla and English, even when you switch languages mid-sentence**.
 Hello is a native macOS app written in Rust. Speech recognition runs on your Mac's GPU with
 Metal, so dictation is fast and works offline.
 
-> **Status:** version 1.0.0, the first release. Apple silicon Macs, macOS 15 or newer.
+> **Status:** version 1.0.1. Apple silicon Macs, macOS 15 or newer.
+> Download it from [hello.minutecampus.com](https://hello.minutecampus.com).
 
 ## Contents
 
@@ -95,7 +96,8 @@ in TypeScript; they run with [Bun](https://bun.sh).
 
 - Audio is recorded and transcribed **on your Mac**. Nothing is uploaded.
 - Hello has **no accounts, telemetry, analytics or AI service integrations**. The only network
-  use is downloading the speech models you choose.
+  use is downloading the speech models you choose and checking
+  `hello.minutecampus.com/appcast.xml` once a day for updates.
 - Settings, history, models and meeting notes live in
   `~/Library/Application Support/voice-control`.
 - Calendar access, speaker recognition and Help tune Bangla are opt-in.
@@ -112,13 +114,19 @@ in TypeScript; they run with [Bun](https://bun.sh).
 
 ## Getting started
 
-There is no downloadable release yet. Build Hello from source (below), then:
+Download **Hello.dmg** from [hello.minutecampus.com](https://hello.minutecampus.com), open it
+and drag Hello into Applications (or build it from source, below). Then:
 
-1. Open **Hello** from Applications.
+1. Open **Hello** from Applications. The first time, macOS can't verify the app: open
+   **System Settings → Privacy & Security** and click **Open Anyway** next to Hello.
 2. Follow setup: grant the permissions and download a speech model.
 3. Click into any text field, hold **Option**, speak, and release.
 4. For Bangla: open **Dictation → Languages**, turn on **Bangla + English**, then add the
    Bangla model and the language detector.
+
+### Updates
+Hello checks for updates once a day and installs them with one click, then restarts. Check by
+hand from the menu bar icon → **Check for Updates…**, or Settings → General.
 
 ## Using Hello
 
@@ -150,8 +158,8 @@ Keyboard: ⌘0 opens Profile, ⌘1–⌘8 open the sidebar items in order, and �
 Models are downloaded from inside the app and stored in
 `~/Library/Application Support/voice-control/models`.
 
-The Bangla model isn't available for download yet. To use it, place
-`whisper-large-v3-turbo-bn-Q8_0.gguf` in that folder.
+The Bangla model is hosted at
+[huggingface.co/dhruba-datta/hello-bangla](https://huggingface.co/dhruba-datta/hello-bangla).
 
 ## Building from source
 
@@ -188,6 +196,16 @@ ditto /tmp/hello-build/Hello.app /Applications/Hello.app
 open /Applications/Hello.app
 ```
 
+### Release
+Updates are signed with an Ed25519 key (its public half is `SUPublicEDKey` in
+`app/Info.plist`). With the version bumped in `app/Info.plist` and `APP_VERSION`:
+```sh
+SPARKLE_KEY=<private key .pem> SIGN_IDENTITY="Hello Local Signing" \
+  RELEASE_NOTES=notes.txt ./release-hello.sh /tmp/hello-release
+gh release create v<version> /tmp/hello-release/Hello.dmg --repo dhruba-datta/hello-releases
+```
+Then publish `/tmp/hello-release/appcast.xml` as `hello.minutecampus.com/appcast.xml`.
+
 ## Project layout
 
 ```text
@@ -212,6 +230,7 @@ branding/                 App icon and the script that draws it
 sdk/commands/             TypeScript kit for custom Voice Commands
 scripts/                  Developer setup scripts
 package-hello.sh          Builds and signs Hello.app
+release-hello.sh          Makes Hello.dmg and the update appcast
 setup-signing.sh          Creates the local signing certificate
 ```
 

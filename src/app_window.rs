@@ -107,6 +107,39 @@ fn sidebar_update_button(
     })
 }
 
+/// General → About: check for updates by hand. Hidden when updates are off or
+/// the updater could not start (for example outside the packaged app).
+fn about_update_button(
+    status: crate::sparkle::UpdateStatus,
+    preview: bool,
+) -> Option<gpui::Stateful<Div>> {
+    use crate::sparkle::UpdateStatus;
+    if !preview && (crate::sparkle::updates_managed() || status == UpdateStatus::Unavailable) {
+        return None;
+    }
+    let label = match status {
+        UpdateStatus::Checking => "Checking…",
+        UpdateStatus::UpToDate => "Hello is up to date",
+        UpdateStatus::UpdateAvailable => "Install update",
+        UpdateStatus::Idle | UpdateStatus::Unavailable => "Check for Updates",
+    };
+    let button = compact_button(label)
+        .id("check-for-updates-about")
+        .bg(tone(SURFACE_HOVER))
+        .cursor_pointer()
+        .on_click(move |_, window, cx| {
+            if !preview {
+                window.dispatch_action(Box::new(CheckForUpdates), cx);
+                window.refresh();
+            }
+        });
+    Some(if status == UpdateStatus::UpdateAvailable {
+        button.bg(rgb(ACCENT)).text_color(rgb(TEXT))
+    } else {
+        button
+    })
+}
+
 /// The microphone menu is deferred above the settings panel and occludes
 /// everything beneath it, so hovering or choosing a device never reaches the
 /// controls under the menu. A mouse-down anywhere else dismisses it.
@@ -4370,9 +4403,16 @@ impl AppWindow {
                             "Hello",
                             "Free, private dictation and meeting notes. Everything stays on your Mac.",
                             div()
-                                .text_size(px(12.0))
-                                .text_color(rgb(MUTED))
-                                .child(format!("Version {APP_VERSION}")),
+                                .flex()
+                                .items_center()
+                                .gap_3()
+                                .child(
+                                    div()
+                                        .text_size(px(12.0))
+                                        .text_color(rgb(MUTED))
+                                        .child(format!("Version {APP_VERSION}")),
+                                )
+                                .children(about_update_button(self.update_status, self.preview)),
                         )
                         .border_b_0(),
                     ),
@@ -9331,7 +9371,7 @@ fn format_count(count: usize) -> String {
 
 /// Hello's own release number. The engine underneath keeps its upstream
 /// version (CARGO_PKG_VERSION) for local API and SDK compatibility.
-const APP_VERSION: &str = "1.0.0";
+const APP_VERSION: &str = "1.0.1";
 
 fn indicator_position_index(position: IndicatorPosition) -> usize {
     match position {

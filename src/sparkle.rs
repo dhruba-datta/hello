@@ -86,15 +86,14 @@ struct SparkleUpdater {
     _framework: Library,
 }
 
-/// This local build never updates itself: a release update would replace it with the
-/// official app. New versions are rebuilt from source instead, so updates stay off.
+/// Updates come from the appcast named by `SUFeedURL` in Info.plist. They are off
+/// only when the `DisableUpdates` preference is set (for example by a profile).
 pub fn updates_managed() -> bool {
-    true
+    organization_disabled_updates()
 }
 
 /// Reads the effective `DisableUpdates` preference once, so a value forced by a
 /// configuration profile takes precedence and changes apply at the next launch.
-#[allow(dead_code)]
 fn organization_disabled_updates() -> bool {
     static MANAGED: OnceLock<bool> = OnceLock::new();
     *MANAGED.get_or_init(|| {

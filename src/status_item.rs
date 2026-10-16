@@ -229,7 +229,7 @@ pub fn install() -> Result<Receiver<StatusItemAction>> {
     model_error.setHidden(true);
     add_item(&models, &target, "Manage Models…", sel!(openModels:), mtm);
     menu.addItem(&NSMenuItem::separatorItem(mtm));
-    // This local build has no update actions; see `sparkle::updates_managed`.
+    // Hidden when updates are turned off; see `sparkle::updates_managed`.
     if !crate::sparkle::updates_managed() {
         add_item(
             &menu,

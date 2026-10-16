@@ -17,9 +17,9 @@
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.0.0</string>
+  <string>1.0.1</string>
   <key>CFBundleVersion</key>
-  <string>1</string>
+  <string>2</string>
   <key>LSApplicationCategoryType</key>
   <string>public.app-category.productivity</string>
   <key>LSMinimumSystemVersion</key>
@@ -38,11 +38,13 @@
   <string>Hello uses Input Monitoring to detect your dictation shortcuts in every app.</string>
   <key>NSMicrophoneUsageDescription</key>
   <string>Hello uses your microphone for private local dictation and does not store the captured audio.</string>
+  <key>SUFeedURL</key>
+  <string>https://hello.minutecampus.com/appcast.xml</string>
+  <key>SUPublicEDKey</key>
+  <string>C+vWbIPp/rJJmZAkqfKRZOE5M6hyHL4jCz/NKXufspw=</string>
   <key>SUEnableAutomaticChecks</key>
-  <false/>
-  <key>SUAutomaticallyUpdate</key>
-  <false/>
+  <true/>
   <key>SUAllowsAutomaticUpdates</key>
-  <false/>
+  <true/>
 </dict>
 </plist>

@@ -178,10 +178,13 @@ impl ModelDefinition {
         !matches!(self.runtime, ModelRuntime::AppleSpeech)
     }
 
-    /// Whether Hello can download this model itself. The Bangla model is
-    /// converted locally until a hosted copy exists.
+    /// Whether Hello can download this model itself. A GGUF with no repository
+    /// has to be placed in the models folder by hand.
     pub fn hosted(&self) -> bool {
-        self.id != TranscriptionModelId::WhisperLargeV3TurboBengali
+        match self.runtime {
+            ModelRuntime::Gguf(artifact) => !artifact.repository.is_empty(),
+            ModelRuntime::AppleSpeech => true,
+        }
     }
 
     /// Offered in model lists. The language detector is an internal helper.
@@ -294,13 +297,13 @@ const WHISPER_ARTIFACT: GgufArtifact = GgufArtifact {
     architecture: "whisper",
     variant: "whisper-large-v3-turbo",
 };
-/// Mozilla's Bengali fine-tune of large-v3-turbo (Apache-2.0), converted to a
+/// A Bangla fine-tune of large-v3-turbo (Apache-2.0), converted to a
 /// transcribe.cpp GGUF with the stock turbo variant so the loader accepts it.
-/// Hello installs it locally; `repository` is where a hosted copy would live.
+/// Hosted by Hello; the model card credits the original.
 const WHISPER_BENGALI_ARTIFACT: GgufArtifact = GgufArtifact {
     filename: "whisper-large-v3-turbo-bn-Q8_0.gguf",
     revision: "main",
-    repository: "mozilla-ai/whisper-large-v3-turbo-bn",
+    repository: "dhruba-datta/hello-bangla",
     bytes: BENGALI_BYTES,
     sha256: BENGALI_SHA256,
     architecture: "whisper",
@@ -1102,7 +1105,7 @@ mod tests {
         let detector = definition(TranscriptionModelId::WhisperBaseLanguageId);
         assert!(!detector.listed());
         assert!(detector.hosted());
-        assert!(!definition(TranscriptionModelId::WhisperLargeV3TurboBengali).hosted());
+        assert!(definition(TranscriptionModelId::WhisperLargeV3TurboBengali).hosted());
     }
 
     #[test]

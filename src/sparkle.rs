@@ -101,6 +101,32 @@ fn organization_disabled_updates() -> bool {
     })
 }
 
+/// Whether this launch is the first one after Hello was updated, and remembers
+/// `version` for next time. Sparkle relaunches the app after installing, and
+/// with both icons hidden that launch would otherwise show nothing.
+pub fn launched_after_update(version: &str) -> bool {
+    let defaults = NSUserDefaults::standardUserDefaults();
+    let key = NSString::from_str("HelloLastLaunchedVersion");
+    let previous = defaults.stringForKey(&key).map(|value| value.to_string());
+    // Versions before 1.0.3 didn't record themselves; a past update check
+    // shows Hello ran before.
+    let checked_before = defaults
+        .objectForKey(&NSString::from_str("SULastCheckTime"))
+        .is_some();
+    if previous.as_deref() != Some(version) {
+        let current = NSString::from_str(version);
+        unsafe { defaults.setObject_forKey(Some(&current), &key) };
+    }
+    is_update(previous.as_deref(), version, checked_before)
+}
+
+fn is_update(previous: Option<&str>, version: &str, checked_before: bool) -> bool {
+    match previous {
+        Some(previous) => previous != version,
+        None => checked_before,
+    }
+}
+
 pub fn start() {
     if updates_managed() {
         tracing::info!("updates are disabled in this local build");
@@ -260,6 +286,14 @@ mod tests {
     use objc2::runtime::ProtocolBuilder;
     use objc2::{ClassType, ProtocolType, sel};
     use objc2_foundation::NSString;
+
+    #[test]
+    fn a_new_version_counts_as_an_update_but_a_first_install_does_not() {
+        assert!(is_update(Some("1.0.2"), "1.0.3", true));
+        assert!(!is_update(Some("1.0.3"), "1.0.3", true));
+        assert!(is_update(None, "1.0.3", true));
+        assert!(!is_update(None, "1.0.3", false));
+    }
 
     #[test]
     fn status_transitions_preserve_results_and_unavailable() {

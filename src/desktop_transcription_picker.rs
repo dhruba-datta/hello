@@ -1,11 +1,10 @@
-use gpui::{
-    AnyElement, Context, FontWeight, IntoElement, div, prelude::*, px, relative, rgb, rgba,
-};
+use crate::desktop_ui::{rgb, rgba};
+use gpui::{AnyElement, Context, FontWeight, IntoElement, div, prelude::*, px, relative};
 
 use crate::desktop_ui::{
-    ACCENT, CANVAS, DANGER_BORDER, DANGER_SURFACE, FAINT, LINE, MUTED, NEGATIVE, PANEL_RADIUS,
-    SIDEBAR, SURFACE, SURFACE_HOVER, SURFACE_SELECTED, TEXT, TEXT_SOFT, compact_button,
-    error_message, tone,
+    ACCENT, CANVAS, DANGER_BORDER, DANGER_SURFACE, FAINT, LINE, MUTED, NEGATIVE, ON_ACCENT,
+    PANEL_RADIUS, SIDEBAR, SURFACE, SURFACE_HOVER, SURFACE_SELECTED, TEXT, TEXT_SOFT,
+    compact_button, error_message, tone,
 };
 use crate::transcription_models::{
     ModelChoice, ModelDefinition, TranscriptionModelId, TranscriptionSelection, language_name,
@@ -173,7 +172,7 @@ pub(crate) fn render_transcription_picker<T: TranscriptionPickerDelegate>(
                     badge
                         .bg(rgb(ACCENT))
                         .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(rgb(TEXT))
+                        .text_color(rgb(ON_ACCENT))
                 } else if preparing {
                     badge.bg(tone(SURFACE_SELECTED)).text_color(rgb(TEXT_SOFT))
                 } else {

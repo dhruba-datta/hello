@@ -7,11 +7,12 @@ use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+use crate::desktop_ui::rgb;
 use color_eyre::eyre::{Result, eyre};
 use gpui::{
     App, Application, Bounds, Context, IntoElement, KeyBinding, Menu, MenuItem, Render, Rgba,
     SystemMenuType, Timer, Window, WindowBackgroundAppearance, WindowBounds, WindowHandle,
-    WindowKind, WindowOptions, div, point, prelude::*, px, rgb, size,
+    WindowKind, WindowOptions, div, point, prelude::*, px, size,
 };
 
 use crate::app_settings::AppSettings;
@@ -535,6 +536,8 @@ pub fn run(shutdown: &'static AtomicBool, launch: Launch) -> Result<()> {
                 ],
             },
         ]);
+        let updated = shell_preview.is_none()
+            && crate::sparkle::launched_after_update(crate::app_window::APP_VERSION);
         if shell_preview.is_none() {
             crate::sparkle::start();
         }
@@ -549,6 +552,7 @@ pub fn run(shutdown: &'static AtomicBool, launch: Launch) -> Result<()> {
         } else {
             None
         };
+        crate::desktop_ui::apply_theme(settings.theme, cx.window_appearance());
         crate::status_item::update_transcription(&settings, &transcription_preparation.status());
         crate::status_item::set_visible(show_menu_bar_icon);
         crate::app_settings::set_dock_icon_visible(crate::app_settings::dock_icon_visible(
@@ -560,12 +564,15 @@ pub fn run(shutdown: &'static AtomicBool, launch: Launch) -> Result<()> {
         // runs always brings the window back.
         let quiet_entry_available = status_actions.is_some()
             && (show_menu_bar_icon || crate::login_item::launches_at_login());
-        let show_app_on_launch = should_open_app_on_launch(
-            show_dock_icon,
-            setup_ready,
-            onboarding_completed,
-            quiet_entry_available,
-        );
+        // After an update Sparkle relaunches Hello; show the window so the
+        // user sees it came back.
+        let show_app_on_launch = updated
+            || should_open_app_on_launch(
+                show_dock_icon,
+                setup_ready,
+                onboarding_completed,
+                quiet_entry_available,
+            );
         let open_result = match shell_preview.clone() {
             Some(preview) => Some(crate::app_window::open_preview(
                 &app_window,
@@ -1252,8 +1259,9 @@ struct MeetingOffer {
 }
 
 impl Render for MeetingOffer {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         use crate::desktop_ui::{Glyph, TINT_PINK, glyph_badge};
+        crate::desktop_ui::apply_theme(crate::app_settings::color_theme(), window.appearance());
         let dismiss = self.commands.clone();
         let record = self.commands.clone();
         let candidate = self.candidate.clone();

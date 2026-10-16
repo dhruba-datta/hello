@@ -8,19 +8,20 @@ use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crate::desktop_ui::{rgb, rgba};
 use gpui::{
     AnyElement, App, Bounds, Context, Div, Entity, FocusHandle, Focusable, FontWeight, IntoElement,
     KeyDownEvent, Modifiers as GpuiModifiers, ModifiersChangedEvent, MouseButton, MouseDownEvent,
     MouseMoveEvent, PathPromptOptions, Pixels, Point, Render, ScrollHandle, SharedString,
     Subscription, Timer, TitlebarOptions, Window, WindowBounds, WindowHandle, WindowOptions,
-    actions, deferred, div, img, linear_color_stop, linear_gradient, prelude::*, px, relative, rgb,
-    rgba, size,
+    actions, deferred, div, img, linear_color_stop, linear_gradient, prelude::*, px, relative,
+    size,
 };
 
 use crate::app_settings::{
-    AppSettings, DictationMode, HotkeyBinding, HotkeyKey, HotkeyModifiers, IndicatorPosition,
-    IndicatorStyle, LanguageRouting, MeetingAudioRetention, ModifierSide, RecordingAudioBehavior,
-    SmartEditing, TextReplacement,
+    AppSettings, ColorTheme, DictationMode, HotkeyBinding, HotkeyKey, HotkeyModifiers,
+    IndicatorPosition, IndicatorStyle, LanguageRouting, MeetingAudioRetention, ModifierSide,
+    RecordingAudioBehavior, SmartEditing, TextReplacement,
 };
 use crate::application_catalog::InstalledApplication;
 use crate::commands::{CommandConfig, CommandInfo, CommandScope};
@@ -33,9 +34,9 @@ use crate::desktop_transcription_picker::{
 };
 use crate::desktop_ui::{
     ACCENT, ACCENT_SOFT, ACCENT_SURFACE, CANVAS, CONTROL_HEIGHT, DANGER_BORDER, DANGER_SURFACE,
-    FAINT, Glyph, LINE, MUTED, NEGATIVE, NavigationIcon, PANE_CONTENT_WIDTH, PANE_LIST_WIDTH,
-    PANEL_RADIUS, POPOVER, POSITIVE, POSITIVE_SURFACE, SECTION_GAP, SIDEBAR_WIDTH, SURFACE,
-    SURFACE_HOVER, SURFACE_SELECTED, TEXT, TEXT_SOFT, TINT_BLUE, TINT_GRAY, TINT_GREEN,
+    FAINT, Glyph, LINE, MUTED, NEGATIVE, NavigationIcon, ON_ACCENT, PANE_CONTENT_WIDTH,
+    PANE_LIST_WIDTH, PANEL_RADIUS, POPOVER, POSITIVE, POSITIVE_SURFACE, SECTION_GAP, SIDEBAR_WIDTH,
+    SURFACE, SURFACE_HOVER, SURFACE_SELECTED, TEXT, TEXT_SOFT, TINT_BLUE, TINT_GRAY, TINT_GREEN,
     TINT_INDIGO, TINT_ORANGE, TINT_PINK, TINT_PURPLE, TINT_TEAL, canvas_button, chip,
     compact_button, compact_header_plus_button, compact_panel, compact_panel_header,
     compact_plus_button, disclosure_button, empty_message, error_message, glyph, glyph_badge,
@@ -93,7 +94,7 @@ fn sidebar_update_button(
             .text_size(px(12.0))
             .flex_none()
             .bg(rgb(ACCENT))
-            .text_color(rgb(TEXT))
+            .text_color(rgb(ON_ACCENT))
             .font_weight(FontWeight::SEMIBOLD)
             .cursor_pointer()
             .hover(|button| button.bg(mix_color(rgb(ACCENT), rgb(TEXT), 0.12)))
@@ -134,7 +135,7 @@ fn about_update_button(
             }
         });
     Some(if status == UpdateStatus::UpdateAvailable {
-        button.bg(rgb(ACCENT)).text_color(rgb(TEXT))
+        button.bg(rgb(ACCENT)).text_color(rgb(ON_ACCENT))
     } else {
         button
     })
@@ -1023,6 +1024,7 @@ pub struct AppWindow {
     sound_volume_spring: ToggleSpring,
     recording_audio_spring: ToggleSpring,
     indicator_position_spring: ToggleSpring,
+    theme_spring: ToggleSpring,
     menu_bar_icon_toggle: ToggleSpring,
     profile_name: ProcessingInput,
     appearance_clock: Instant,
@@ -1056,6 +1058,7 @@ pub struct AppWindow {
     hotkey_focus: FocusHandle,
     _hotkey_blur_subscription: Subscription,
     _activation_subscription: Subscription,
+    _appearance_subscription: Subscription,
     meetings: Vec<MeetingManifest>,
     meetings_error: Option<String>,
     meeting_runtime_error: Option<String>,
@@ -1256,6 +1259,9 @@ impl AppWindow {
                     }
                 }
             });
+        // Auto follows the Mac, so redraw when it switches between light and dark.
+        let appearance_subscription =
+            cx.observe_window_appearance(native_window, |_, _, cx| cx.notify());
         let compiled_commands = commands
             .catalog()
             .into_iter()
@@ -1450,6 +1456,7 @@ impl AppWindow {
             indicator_position_spring: ToggleSpring::at(indicator_position_index(
                 IndicatorPosition::resolve(settings.indicator_position, settings.indicator_style),
             ) as f32),
+            theme_spring: ToggleSpring::at(theme_index(settings.theme) as f32),
             menu_bar_icon_toggle: ToggleSpring::new(settings.show_menu_bar_icon),
             profile_name,
             appearance_clock: Instant::now(),
@@ -1547,6 +1554,7 @@ impl AppWindow {
             hotkey_focus,
             _hotkey_blur_subscription: hotkey_blur_subscription,
             _activation_subscription: activation_subscription,
+            _appearance_subscription: appearance_subscription,
             settings,
             settings_load_error,
             #[cfg(test)]
@@ -2886,6 +2894,20 @@ impl AppWindow {
                             }))
                     }),
             );
+        let theme = self.settings.theme;
+        let theme_spring = self.theme_spring.render_position(window);
+        let theme_widths = [64.0, 64.0, 64.0];
+        let theme_control = sliding_segmented_control(theme_spring, &theme_widths).children(
+            ColorTheme::ALL
+                .into_iter()
+                .enumerate()
+                .map(|(index, option)| {
+                    sliding_segmented_item(theme_widths[index], theme == option)
+                        .id(("color-theme", index))
+                        .child(option.label())
+                        .on_click(cx.listener(move |this, _, _, cx| this.set_theme(option, cx)))
+                }),
+        );
         let cards = IndicatorStyle::ALL
             .into_iter()
             .enumerate()
@@ -2975,6 +2997,21 @@ impl AppWindow {
             "Appearance",
             "appearance-scroll",
             div()
+                .child(
+                    settings_panel().child(
+                        settings_row(
+                            "Theme",
+                            match theme {
+                                ColorTheme::Auto => "Matches your Mac's light or dark setting",
+                                ColorTheme::Light => "Light windows",
+                                ColorTheme::Dark => "Dark windows",
+                            },
+                            theme_control,
+                        )
+                        .border_b_0()
+                        .id("color-theme-setting"),
+                    ),
+                )
                 .child(settings_section_label("RECORDING INDICATOR"))
                 .child(div().flex().flex_row().gap_3().children(cards))
                 .child(
@@ -3875,7 +3912,7 @@ impl AppWindow {
             compact_button("Choose model")
                 .id("choose-required-model")
                 .bg(rgb(ACCENT))
-                .text_color(rgb(TEXT))
+                .text_color(rgb(ON_ACCENT))
                 .font_weight(FontWeight::MEDIUM)
                 .on_click(cx.listener(|this, _, _, cx| {
                     this.transcription_picker_language =
@@ -4624,7 +4661,7 @@ impl AppWindow {
             compact_button("Choose model")
                 .id("setup-models")
                 .bg(rgb(ACCENT))
-                .text_color(rgb(TEXT))
+                .text_color(rgb(ON_ACCENT))
                 .font_weight(FontWeight::SEMIBOLD)
                 .on_click(cx.listener(|this, _, _, cx| {
                     this.transcription_picker_language =
@@ -4850,6 +4887,15 @@ impl AppWindow {
             let position = IndicatorPosition::resolve(self.settings.indicator_position, style);
             self.indicator_position_spring
                 .set_target(indicator_position_index(position) as f32);
+        }
+    }
+
+    fn set_theme(&mut self, theme: ColorTheme, cx: &mut Context<Self>) {
+        if self.settings.theme == theme {
+            return;
+        }
+        if self.update_settings(cx, |settings| settings.theme = theme) {
+            self.theme_spring.set_target(theme_index(theme) as f32);
         }
     }
 
@@ -8811,6 +8857,7 @@ impl TranscriptionPickerDelegate for AppWindow {
 
 impl Render for AppWindow {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        crate::desktop_ui::apply_theme(self.settings.theme, window.appearance());
         let model_notice = self.render_model_notice(cx);
         let content = match self.pane {
             Pane::HudLab => self.render_hud_lab(cx),
@@ -9376,7 +9423,14 @@ fn format_count(count: usize) -> String {
 
 /// Hello's own release number. The engine underneath keeps its upstream
 /// version (CARGO_PKG_VERSION) for local API and SDK compatibility.
-const APP_VERSION: &str = "1.0.2";
+pub(crate) const APP_VERSION: &str = "1.0.3";
+
+fn theme_index(theme: ColorTheme) -> usize {
+    ColorTheme::ALL
+        .iter()
+        .position(|option| *option == theme)
+        .unwrap_or(0)
+}
 
 fn indicator_position_index(position: IndicatorPosition) -> usize {
     match position {
@@ -9458,9 +9512,9 @@ fn preview_pill(width: f32, height: f32) -> Div {
         .items_center()
         .justify_center()
         .rounded_full()
-        .bg(rgb(0x09090a))
+        .bg(gpui::rgb(0x09090a))
         .border_1()
-        .border_color(rgba(0xffffff2e))
+        .border_color(gpui::rgba(0xffffff2e))
         .shadow(vec![gpui::BoxShadow {
             color: gpui::hsla(0.0, 0.0, 0.0, 0.55),
             offset: gpui::point(px(0.0), px(4.0)),
@@ -9470,13 +9524,14 @@ fn preview_pill(width: f32, height: f32) -> Div {
 }
 
 /// A live miniature of each recording indicator style for the Appearance page.
+/// Drawn in the real indicator's colors, which don't change with the theme.
 fn indicator_preview(style: IndicatorStyle, time: f32) -> AnyElement {
     let level = preview_level(time);
     match style {
         IndicatorStyle::Classic => div()
             .p(preview_px(3.0))
             .rounded_full()
-            .bg(rgba(0xff2d3a2e))
+            .bg(gpui::rgba(0xff2d3a2e))
             .opacity(0.75 + 0.25 * (time * 3.0).sin())
             .child(
                 div()
@@ -9485,8 +9540,8 @@ fn indicator_preview(style: IndicatorStyle, time: f32) -> AnyElement {
                     .rounded_full()
                     .bg(linear_gradient(
                         90.0,
-                        linear_color_stop(rgb(0xff1f2f), 0.0),
-                        linear_color_stop(rgb(0xff6a3d), 1.0),
+                        linear_color_stop(gpui::rgb(0xff1f2f), 0.0),
+                        linear_color_stop(gpui::rgb(0xff6a3d), 1.0),
                     )),
             )
             .into_any_element(),
@@ -9501,7 +9556,7 @@ fn indicator_preview(style: IndicatorStyle, time: f32) -> AnyElement {
                     .w(preview_px(2.4))
                     .h(preview_px(2.4 + 17.6 * amount))
                     .rounded_full()
-                    .bg(rgb(0xffffff))
+                    .bg(gpui::rgb(0xffffff))
             }))
             .into_any_element(),
         IndicatorStyle::Orb => {
@@ -9513,8 +9568,8 @@ fn indicator_preview(style: IndicatorStyle, time: f32) -> AnyElement {
                         .rounded_full()
                         .bg(linear_gradient(
                             (time * 60.0) % 360.0,
-                            linear_color_stop(rgb(0x528fff), 0.0),
-                            linear_color_stop(rgb(0xd070ff), 1.0),
+                            linear_color_stop(gpui::rgb(0x528fff), 0.0),
+                            linear_color_stop(gpui::rgb(0xd070ff), 1.0),
                         )),
                 )
                 .into_any_element()
@@ -9548,7 +9603,7 @@ fn indicator_preview(style: IndicatorStyle, time: f32) -> AnyElement {
                                 }
                             }
                             if let Ok(path) = path.build() {
-                                window.paint_path(path, rgb(0xffffff));
+                                window.paint_path(path, gpui::rgb(0xffffff));
                             }
                         },
                     )
@@ -9571,7 +9626,7 @@ fn indicator_preview(style: IndicatorStyle, time: f32) -> AnyElement {
                     .top(preview_px(-hop))
                     .size(preview_px(4.0))
                     .rounded_full()
-                    .bg(rgb(0xffffff))
+                    .bg(gpui::rgb(0xffffff))
             }))
             .into_any_element(),
     }

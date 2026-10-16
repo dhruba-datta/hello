@@ -1,10 +1,126 @@
 use gpui::{
-    AnyElement, Div, ElementId, FontWeight, IntoElement, Rgba, Stateful, div, prelude::*, px, rgb,
-    rgba,
+    AnyElement, Div, ElementId, FontWeight, IntoElement, Rgba, Stateful, WindowAppearance, div,
+    prelude::*, px,
 };
 
 use gpui::{Image, ImageFormat, img};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use crate::app_settings::ColorTheme;
+
+/// Whether the light palette is active. Every color in the UI is written in the dark
+/// palette and drawn through [`rgb`], [`rgba`] or [`tone`], which swap in its light
+/// counterpart while this is set.
+static LIGHT: AtomicBool = AtomicBool::new(false);
+
+/// Resolves the user's theme against the system appearance; call before rendering.
+pub(crate) fn apply_theme(theme: ColorTheme, system: WindowAppearance) {
+    let light = match theme {
+        ColorTheme::Light => true,
+        ColorTheme::Dark => false,
+        ColorTheme::Auto => matches!(
+            system,
+            WindowAppearance::Light | WindowAppearance::VibrantLight
+        ),
+    };
+    LIGHT.store(light, Ordering::Relaxed);
+}
+
+pub(crate) fn is_light() -> bool {
+    LIGHT.load(Ordering::Relaxed)
+}
+
+/// An opaque color (0xRRGGBB) in the active theme.
+pub(crate) fn rgb(hex: u32) -> Rgba {
+    gpui::rgb(themed(hex))
+}
+
+/// A color with alpha (0xRRGGBBAA) in the active theme. Translucent white, which
+/// lightens a dark surface, becomes translucent black on a light one.
+pub(crate) fn rgba(hex: u32) -> Rgba {
+    let (color, alpha) = (hex >> 8, hex & 0xff);
+    let color = if is_light() && color == 0xffffff && alpha < 0xff {
+        0x000000
+    } else {
+        themed(color)
+    };
+    gpui::rgba((color << 8) | alpha)
+}
+
+fn themed(hex: u32) -> u32 {
+    if is_light() { light_variant(hex) } else { hex }
+}
+
+/// The light-palette counterpart of a dark-palette color. Named colors map by hand;
+/// other grays mirror around the middle; accents and tints stay as they are.
+pub(crate) fn light_variant(hex: u32) -> u32 {
+    match hex {
+        // Backgrounds: window, sidebar, sheets.
+        0x1c1c1e => 0xf5f5f7,
+        0x19191c => 0xebebf0,
+        0x22212f => 0xf0f0f5,
+        0x18181b => 0xe9e9ee,
+        0x1f1f22 => 0xfafafc,
+        0x111113 => 0xe6e6eb,
+        0x1d1d21 => 0xf3f3f6,
+        0x09090a => 0xdedee3,
+        // Cards, rows and their states.
+        0x242427 => 0xffffff,
+        0x2c2c30 | 0x2c2c2f => 0xf2f2f5,
+        0x2a2a2f => 0xededf1,
+        0x36363c => 0xe5e5ea,
+        0x303036 => 0xe6e6eb,
+        0x37373d => 0xdedee4,
+        0x323238 => 0xdedee3,
+        0x2f2f36 => 0xdcdce3,
+        0x3b3b44 => 0xcdcdd6,
+        0x25252b => 0xe3e3e9,
+        // Tinted surfaces.
+        0x1a2a44 => 0xe3eefc,
+        0x1f2a3d => 0xe7effb,
+        0x1b2c47 => 0xdce8fb,
+        0x0e1522 => 0xeef3fb,
+        0x15291b => 0xe2f5e7,
+        0x2a5a3a => 0xcdebd6,
+        0x2e1718 => 0xfde9e9,
+        0x6b2a2c => 0xefb3b1,
+        // Text.
+        0xf5f5f7 => 0x1d1d1f,
+        0xd1d1d6 => 0x3a3a3c,
+        0x98989d => 0x6e6e73,
+        0x8e8e96 => 0x6e6e78,
+        0x6e6e73 => 0x8e8e93,
+        // Accents that need more contrast on white.
+        0x64b0ff => 0x0a6ed1,
+        0x30d158 => 0x1f9d48,
+        0xff6961 => 0xd70015,
+        _ => mirrored_gray(hex),
+    }
+}
+
+/// Mirrors a near-neutral gray: dark fills become light fills (raised ones a touch
+/// darker, like macOS), light text becomes dark text. Colors pass through.
+fn mirrored_gray(hex: u32) -> u32 {
+    let channels = [(hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff];
+    let (low, high) = (
+        *channels.iter().min().unwrap(),
+        *channels.iter().max().unwrap(),
+    );
+    if high - low > 0x14 || hex == 0xffffff || hex == 0x000000 {
+        return hex;
+    }
+    let level = if high <= 0x1c {
+        0xf5 - (0x1c - high) * 2
+    } else if high <= 0x24 {
+        0xff
+    } else if high < 0x70 {
+        (0xff - (high - 0x24) * 6 / 5).max(0xc4)
+    } else {
+        (0xff + 0x08 - high).max(0x1d)
+    };
+    (level << 16) | (level << 8) | level
+}
 
 #[derive(Clone, Copy)]
 pub(crate) enum NavigationIcon {
@@ -72,10 +188,12 @@ impl NavigationIcon {
 /// Rendered from SVG at 4x its 24-unit grid so the strokes stay crisp on
 /// Retina displays when drawn at sidebar size.
 fn navigation_icon(icon: NavigationIcon, selected: bool) -> AnyElement {
+    let ink = if is_light() { "#1d1d1f" } else { "#ffffff" };
     let svg = format!(
         r##"<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">{}</svg>"##,
         icon.line_icon()
-    );
+    )
+    .replace("#ffffff", ink);
     div()
         .size(px(17.0))
         .opacity(if selected { 1.0 } else { 0.72 })
@@ -148,6 +266,8 @@ pub(crate) const ACCENT_SURFACE: Tone = Tone(0x1a2a44ff);
 /// Menus and pickers float above content, so they stay opaque for legibility.
 pub(crate) const POPOVER: u32 = 0x2c2c2f;
 pub(crate) const ACCENT: u32 = 0x0a84ff;
+/// Text on an accent fill; white in both themes.
+pub(crate) const ON_ACCENT: u32 = 0xffffff;
 pub(crate) const ACCENT_SOFT: u32 = 0x64b0ff;
 pub(crate) const POSITIVE: u32 = 0x30d158;
 pub(crate) const POSITIVE_SURFACE: u32 = 0x15291b;
@@ -873,7 +993,8 @@ pub(crate) fn tinted(tint: u32, amount: f32) -> Rgba {
 pub(crate) fn glyph(glyph: Glyph, size: f32, color: u32) -> AnyElement {
     let svg = format!(
         r##"<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="#{color:06x}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">{}</svg>"##,
-        glyph.paths()
+        glyph.paths(),
+        color = themed(color)
     );
     img(Arc::new(Image::from_bytes(
         ImageFormat::Svg,
@@ -886,6 +1007,13 @@ pub(crate) fn glyph(glyph: Glyph, size: f32, color: u32) -> AnyElement {
 
 /// A rounded tinted square holding a white glyph.
 pub(crate) fn glyph_badge(icon: Glyph, size: f32, tint: u32) -> AnyElement {
+    // On white cards a pale tint would wash out the white glyph, so the
+    // light theme uses a fuller fill, like the icons in System Settings.
+    let (border, top, bottom) = if is_light() {
+        (0.9, 0.92, 0.78)
+    } else {
+        (0.45, 0.42, 0.26)
+    };
     div()
         .size(px(size))
         .flex_none()
@@ -894,11 +1022,11 @@ pub(crate) fn glyph_badge(icon: Glyph, size: f32, tint: u32) -> AnyElement {
         .justify_center()
         .rounded(px(size * 0.3))
         .border_1()
-        .border_color(tinted(tint, 0.45))
+        .border_color(tinted(tint, border))
         .bg(gpui::linear_gradient(
             180.0,
-            gpui::linear_color_stop(tinted(tint, 0.42), 0.0),
-            gpui::linear_color_stop(tinted(tint, 0.26), 1.0),
+            gpui::linear_color_stop(tinted(tint, top), 0.0),
+            gpui::linear_color_stop(tinted(tint, bottom), 1.0),
         ))
         .child(glyph(icon, size * 0.52, 0xffffff))
         .into_any_element()

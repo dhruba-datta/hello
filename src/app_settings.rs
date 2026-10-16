@@ -14,6 +14,7 @@ pub use crate::smart_editing::SmartEditing;
 
 static RECORDING_AUDIO_BEHAVIOR: AtomicU8 = AtomicU8::new(0);
 static INDICATOR_STYLE: AtomicU8 = AtomicU8::new(0);
+static COLOR_THEME: AtomicU8 = AtomicU8::new(0);
 // 0 = the style's natural place, 1 = top, 2 = bottom.
 static INDICATOR_POSITION: AtomicU8 = AtomicU8::new(0);
 static SMART_EDITING: AtomicU8 = AtomicU8::new(smart_editing_bits(SmartEditing {
@@ -723,6 +724,28 @@ impl RecordingAudioBehavior {
     }
 }
 
+/// Light or dark windows. Auto follows the macOS appearance.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ColorTheme {
+    #[default]
+    Auto,
+    Light,
+    Dark,
+}
+
+impl ColorTheme {
+    pub const ALL: [Self; 3] = [Self::Auto, Self::Light, Self::Dark];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Auto => "Auto",
+            Self::Light => "Light",
+            Self::Dark => "Dark",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct AppSettings {
@@ -736,6 +759,7 @@ pub struct AppSettings {
     pub indicator_style: IndicatorStyle,
     /// None keeps each style in its natural place until the user picks one.
     pub indicator_position: Option<IndicatorPosition>,
+    pub theme: ColorTheme,
     pub smart_editing: SmartEditing,
     /// Hide Hello from the menu bar; the Dock icon then stays visible so the app remains reachable.
     pub show_menu_bar_icon: bool,
@@ -768,6 +792,7 @@ impl Default for AppSettings {
             recording_audio_behavior: RecordingAudioBehavior::DoNothing,
             indicator_style: IndicatorStyle::Classic,
             indicator_position: None,
+            theme: ColorTheme::Auto,
             smart_editing: SmartEditing::default(),
             show_menu_bar_icon: true,
             profile_name: String::new(),
@@ -1001,6 +1026,13 @@ impl AppSettings {
         MEETING_AUDIO_RETENTION.store(self.notetaker.audio_retention.encoded(), Ordering::Relaxed);
         RECORDING_AUDIO_BEHAVIOR.store(self.recording_audio_behavior.encoded(), Ordering::Relaxed);
         INDICATOR_STYLE.store(self.indicator_style.encoded(), Ordering::Relaxed);
+        COLOR_THEME.store(
+            ColorTheme::ALL
+                .iter()
+                .position(|theme| *theme == self.theme)
+                .unwrap_or(0) as u8,
+            Ordering::Relaxed,
+        );
         INDICATOR_POSITION.store(
             match self.indicator_position {
                 None => 0,
@@ -1177,6 +1209,13 @@ pub fn smart_editing() -> SmartEditing {
         numbered_lists: bits & 8 != 0,
         end_with_period: bits & 16 != 0,
     }
+}
+
+pub fn color_theme() -> ColorTheme {
+    ColorTheme::ALL
+        .get(COLOR_THEME.load(Ordering::Relaxed) as usize)
+        .copied()
+        .unwrap_or_default()
 }
 
 pub fn indicator_style() -> IndicatorStyle {

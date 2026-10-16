@@ -1,0 +1,9 @@
+/target
+/.venv
+/logs
+/dist
+node_modules/
+__pycache__/
+*.py[cod]
+*.rmeta
+.DS_Store

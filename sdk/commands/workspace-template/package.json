@@ -1,0 +1,15 @@
+{
+  "name": "hello-commands",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hello/commands": "file:.hello-sdk",
+    "effect": "4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.0"
+  }
+}

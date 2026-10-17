@@ -550,6 +550,13 @@ fn stamp_ended(manifest: &mut MeetingManifest, ended_at_ms: u64) {
         .get_or_insert(ended_at_ms.saturating_sub(manifest.created_at_ms));
 }
 
+const PERMISSION_FAILURE: &str = "macOS did not let Hello hear system audio.";
+
+/// Whether a stored failure text is the permission refusal from [`describe_failure`].
+pub fn is_permission_failure(error: &str) -> bool {
+    error.starts_with(PERMISSION_FAILURE)
+}
+
 /// The whole error chain, with a plain explanation in front when macOS refused the
 /// system audio capture. The permission switch can show "on" while the stored entry still
 /// belongs to an older build of Hello, so the fix is to remove and re-add it.
@@ -559,9 +566,9 @@ pub fn describe_failure(chain: &str) -> String {
         || chain.contains("could not start meeting capture");
     if refused {
         format!(
-            "macOS did not let Hello hear system audio. In System Settings, under Privacy & \
-             Security, Screen & System Audio Recording, remove Hello with the \u{2212} button, add \
-             it again with the + button and turn it on, then open Hello again. ({chain})"
+            "{PERMISSION_FAILURE} In System Settings, under Privacy & Security, Screen & System \
+             Audio Recording, remove Hello with the \u{2212} button, add it again with the + \
+             button and turn it on, then open Hello again. ({chain})"
         )
     } else {
         chain.to_string()

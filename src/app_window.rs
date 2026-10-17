@@ -7061,6 +7061,7 @@ impl AppWindow {
                 .child(
                     div()
                         .flex_1()
+                        .min_w_0()
                         .flex()
                         .flex_col()
                         .gap(px(2.0))
@@ -7071,15 +7072,16 @@ impl AppWindow {
                                 .child("Allow Hello to hear your calls"),
                         )
                         .child(div().text_size(px(11.0)).text_color(rgb(MUTED)).child(
-                            "Turn on Hello under Screen & System Audio Recording so it \
-                                     can hear the other people in a call. If Hello is already \
-                                     on there, remove it with \u{2212}, add it again with + and \
-                                     turn it on, then open Hello again.",
+                            "Turn on Hello under Screen & System Audio Recording so it can \
+                                     hear the other people in a call. Already on there? Remove \
+                                     Hello with \u{2212}, add it back and turn it on, then open \
+                                     Hello again.",
                         )),
                 )
                 .child(
                     header_button("Open Settings")
                         .id("meeting-permission")
+                        .flex_none()
                         .on_click(cx.listener(|this, _, _, cx| {
                             request_screen_capture_access();
                             this.screen_capture_allowed = None;
@@ -7433,13 +7435,28 @@ impl AppWindow {
                         )
                     })
                     .when_some(meeting.error.clone(), |header, error| {
-                        header.child(
-                            div()
-                                .text_size(px(11.0))
-                                .line_height(px(17.0))
-                                .text_color(rgb(NEGATIVE))
-                                .child(error),
-                        )
+                        let permission = meeting::is_permission_failure(&error);
+                        header
+                            .child(
+                                div()
+                                    .text_size(px(11.0))
+                                    .line_height(px(17.0))
+                                    .text_color(rgb(NEGATIVE))
+                                    .child(error),
+                            )
+                            .when(permission, |header| {
+                                header.child(
+                                    div().flex().child(
+                                        header_button("Open Screen & System Audio Recording")
+                                            .id("meeting-failure-permission")
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                request_screen_capture_access();
+                                                this.screen_capture_allowed = None;
+                                                cx.notify();
+                                            })),
+                                    ),
+                                )
+                            })
                     }),
             )
             .child(

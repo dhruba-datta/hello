@@ -5,16 +5,17 @@
     <link>https://hello.minutecampus.com/appcast.xml</link>
     <language>en</language>
     <item>
-      <title>Hello 1.0.7</title>
-      <pubDate>Sat, 17 Oct 2026 19:34:53 +0000</pubDate>
-      <sparkle:version>8</sparkle:version>
-      <sparkle:shortVersionString>1.0.7</sparkle:shortVersionString>
+      <title>Hello 1.0.8</title>
+      <pubDate>Sat, 17 Oct 2026 20:09:54 +0000</pubDate>
+      <sparkle:version>9</sparkle:version>
+      <sparkle:shortVersionString>1.0.8</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[<h2>Hello 1.0.7</h2><ul><li>Typing page redesigned: what Hello has learned is shown as four tiles (words, sentences, Tab accepts, last learned) with a clear status line, and the switches sit at the edge of their cards.</li>
-<li>Shorter text in the tiles so nothing is cut off on smaller windows.</li></ul>]]></description>
-      <enclosure url="https://github.com/dhruba-datta/hello/releases/download/v1.0.7/Hello.dmg"
-        length="31137665" type="application/octet-stream"
-        sparkle:edSignature="N563pXAn39lbY9UBpIx9OqUGwbQeNDl1eEUtRi5L4TBGnlJSBf9reXgqoby3rkQ4Qy+8lNXjrxZDNYCTKez7Ag==" />
+      <description><![CDATA[<h2>Hello 1.0.8</h2><ul><li>Notetaker: when macOS refuses to let Hello hear a call even though the switch looks on, the Allow button now clears Hello's old permission entry and asks macOS again. No more removing and re-adding Hello by hand.</li>
+<li>A meeting note that failed for this reason explains it in plain words and has the same Allow button.</li>
+<li>Hello shows its window again after macOS quits and reopens it following a permission change, instead of coming back silently.</li></ul>]]></description>
+      <enclosure url="https://github.com/dhruba-datta/hello/releases/download/v1.0.8/Hello.dmg"
+        length="31135661" type="application/octet-stream"
+        sparkle:edSignature="ilKdgR6dclSxep7GOJj6JW0yc12LcvC9EMD984Fu9kbUMIs1BokTKUF//xEWDUkBwxpmi7ycdwhTvgh9jFw9BQ==" />
     </item>
   </channel>
 </rss>

@@ -5,23 +5,18 @@
     <link>https://hello.minutecampus.com/appcast.xml</link>
     <language>en</language>
     <item>
-      <title>Hello 1.0.5</title>
-      <pubDate>Sat, 17 Oct 2026 05:39:13 +0000</pubDate>
-      <sparkle:version>6</sparkle:version>
-      <sparkle:shortVersionString>1.0.5</sparkle:shortVersionString>
+      <title>Hello 1.0.6</title>
+      <pubDate>Sat, 17 Oct 2026 19:10:18 +0000</pubDate>
+      <sparkle:version>7</sparkle:version>
+      <sparkle:shortVersionString>1.0.6</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[<h2>Hello 1.0.5</h2><ul><li>Dictionary: add names and terms once and Hello hears them, spells them your way and fixes close misses. Say what a word is often heard as and that is corrected too.</li>
-<li>Snippets: mark a dictionary entry as a snippet and saying its phrase pastes the saved text.</li>
-<li>Add to Dictionary from any dictation in History.</li>
-<li>Bangla punctuation: a full stop after Bangla becomes "।". Choose how numbers are written in Bangla sentences (as spoken, ১২৩ or 123).</li>
-<li>Paste check: if an app ignores the paste, your dictation stays on the clipboard and Hello tells you to press ⌘V.</li>
-<li>Hello says when a password field or secure keyboard entry is stopping its shortcut.</li>
-<li>Modifier keys that macOS still thinks are held are released after each dictation.</li>
-<li>The app icon is refreshed in Finder and the Dock after an update.</li>
-<li>Dictionary is ⌘7; Notetaker and History are now ⌘8 and ⌘9.</li></ul>]]></description>
-      <enclosure url="https://github.com/dhruba-datta/hello/releases/download/v1.0.5/Hello.dmg"
-        length="31105793" type="application/octet-stream"
-        sparkle:edSignature="NprvlTN4h6aSnpCoVdHzqIZS/+osRh9PUy6fR9c6s5YzGYW47xxBSGYOisgPvmcdC8edICusVhhEYo/NjzBCBw==" />
+      <description><![CDATA[<h2>Hello 1.0.6</h2><ul><li>Hello Type: suggestions while you type, in any app. Turn it on in the new Typing page (⌘3). Hello quietly learns your own words and phrases as you type and from your dictations; when it is confident about the next word it shows it in grey next to the cursor. Press Tab to accept, or keep typing to ignore it.</li>
+<li>A fresh install suggests nothing at first: Hello only suggests what it has seen you write.</li>
+<li>Everything stays on your Mac. Password fields and secure keyboard entry are never read or learned, and "Forget everything" moves what Hello learned to the Trash.</li>
+<li>Keyboard shortcuts moved: Typing is ⌘3, Appearance to Notetaker are ⌘4 to ⌘9; History is in the View menu.</li></ul>]]></description>
+      <enclosure url="https://github.com/dhruba-datta/hello/releases/download/v1.0.6/Hello.dmg"
+        length="31134515" type="application/octet-stream"
+        sparkle:edSignature="McUGFKEglXCD5GQKvzrKF9jzkh1U/i4g9YDsminL2n5D2kEWGFIL1Q2FM+xGGPcvg7zgt9fKQil6eZbUUo+JDw==" />
     </item>
   </channel>
 </rss>

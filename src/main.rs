@@ -109,6 +109,11 @@ mod transcription_models;
 mod transcription_preparation;
 #[cfg(target_os = "macos")]
 mod transcription_service;
+#[cfg(target_os = "macos")]
+mod typing;
+mod typing_model;
+#[cfg(target_os = "macos")]
+mod typing_overlay;
 
 #[cfg(target_os = "macos")]
 use std::fs;
@@ -323,6 +328,7 @@ enum AppPreviewTarget {
     Modes,
     Commands,
     Dictionary,
+    Typing,
     Meetings,
     Activity,
     History,
@@ -451,6 +457,7 @@ fn main() -> Result<()> {
                 AppPreviewTarget::Modes => developer_control::DeveloperPane::Modes,
                 AppPreviewTarget::Commands => developer_control::DeveloperPane::Commands,
                 AppPreviewTarget::Dictionary => developer_control::DeveloperPane::Dictionary,
+                AppPreviewTarget::Typing => developer_control::DeveloperPane::Typing,
                 AppPreviewTarget::Meetings => developer_control::DeveloperPane::Meetings,
                 AppPreviewTarget::Activity => developer_control::DeveloperPane::Activity,
                 AppPreviewTarget::History => developer_control::DeveloperPane::History,

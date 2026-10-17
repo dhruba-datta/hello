@@ -136,6 +136,7 @@ pub(crate) enum NavigationIcon {
     Profile,
     Settings,
     Sounds,
+    Typing,
 }
 
 impl NavigationIcon {
@@ -165,6 +166,10 @@ impl NavigationIcon {
             // Terminal prompt.
             Self::Commands => {
                 r#"<rect x="3" y="4.5" width="18" height="15" rx="3.5"/><path d="m7.5 9.5 2.5 2.5-2.5 2.5M12.5 14.5h4"/>"#
+            }
+            // Keyboard.
+            Self::Typing => {
+                r#"<rect x="2.5" y="6" width="19" height="12" rx="3"/><path d="M6.5 10h1M10 10h1M13.5 10h1M17 10h.5M7.5 14h9"/>"#
             }
             // Open book.
             Self::Dictionary => {

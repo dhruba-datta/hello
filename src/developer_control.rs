@@ -26,6 +26,7 @@ pub enum DeveloperPane {
     HudLab,
     Commands,
     Dictionary,
+    Typing,
     Meetings,
     Activity,
 }

@@ -64,6 +64,18 @@ Metal, so dictation is fast and works offline.
 - **Stuck keys:** after each dictation Hello releases modifier keys that macOS still thinks are
   held, so a swallowed key-up never leaves Option or Command stuck.
 
+### Hello Type (typing suggestions)
+Hello is for typing too. Turn on **Typing → Suggest while typing** and Hello learns the words
+and phrases you type, in any app, and suggests the next ones as grey text at the cursor.
+Press **Tab** to accept, or keep typing. It starts silent: a fresh install suggests nothing
+until it has seen how you write, and it only offers words it has seen you use often.
+- Learns from your typing (switchable) and from your dictations; English, Bangla or mixed.
+- Everything stays in `typing-model.json` on your Mac. Password fields are never read, Hello
+  pauses while another app holds secure input, and **Forget everything** moves the learned
+  model to the Trash.
+- Apps that hide their text from Accessibility (some terminals and editors) get no
+  suggestions.
+
 ### Dictionary and snippets
 Names and terms Hello should get right, and short phrases that paste a saved text. Kept in
 `dictionary.json` on your Mac.
@@ -171,6 +183,7 @@ or General → About. Updates are signed (Ed25519) and verified before they inst
 | **Profile** | Your dictation stats, streaks and top apps |
 | **General** | Open at login, menu bar and Dock icons, about |
 | **Dictation** | Speech model, microphone, shortcuts, recording behaviour, smart editing, languages |
+| **Typing** | Hello Type: suggestions while typing, what Hello has learned, Forget everything |
 | **Appearance** | Light / Dark / Auto, recording indicator position and style |
 | **Sounds** | Sound theme and volume |
 | **Modes** | Per-app replacements and transformations |
@@ -179,7 +192,7 @@ or General → About. Updates are signed (Ed25519) and verified before they inst
 | **Notetaker** | Meeting detection, calendar, speaker recognition, and all meeting notes |
 | **History** | Past dictations |
 
-Keyboard: ⌘0 opens Profile, ⌘1–⌘9 open the sidebar items in order, and ⌘, opens General.
+Keyboard: ⌘0 opens Profile, ⌘1–⌘9 open the sidebar items in order (General to Notetaker), and ⌘, opens General.
 
 ## Speech models
 
@@ -302,6 +315,8 @@ src/                      Rust source (one crate, binary "voice-control")
   transcription*.rs       Model catalog, downloads and transcription service
   smart_editing.rs        Filler removal, "scratch that", lists, line breaks, Bangla digits
   dictionary.rs           Personal dictionary: hints, corrections and snippets
+  typing.rs               Hello Type: watches typing, learns, suggests; typing_model.rs is the
+                          word model and typing_overlay.rs the panel at the caret
   notice.rs               Short notices (paste check, secure input)
   meeting*.rs             Notetaker: detection, recording, transcripts
   meeting_context.rs      Where a meeting is (platform, app, profile, link)

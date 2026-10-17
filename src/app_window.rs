@@ -291,6 +291,7 @@ actions!(
         StopMeetingNotes,
         ToggleMeetingDetection,
         ShowSettings,
+        ShowTyping,
         ToggleFullscreen,
     ]
 );
@@ -567,6 +568,7 @@ enum Pane {
     Meetings,
     Commands,
     Dictionary,
+    Typing,
     Activity,
     History,
     Modes,
@@ -608,10 +610,11 @@ impl Pane {
         }
     }
 
-    const ALL: [Self; 12] = [
+    const ALL: [Self; 13] = [
         Self::Profile,
         Self::General,
         Self::Settings,
+        Self::Typing,
         Self::Appearance,
         Self::Sounds,
         Self::Modes,
@@ -630,6 +633,7 @@ impl Pane {
                 Self::Profile
                 | Self::General
                 | Self::Settings
+                | Self::Typing
                 | Self::Appearance
                 | Self::Sounds
                 | Self::Modes
@@ -652,6 +656,7 @@ impl Pane {
             Self::History => "History",
             Self::Modes => "Modes",
             Self::Settings => "Dictation",
+            Self::Typing => "Typing",
             Self::General => "General",
             Self::Appearance => "Appearance",
             Self::Sounds => "Sounds",
@@ -662,7 +667,7 @@ impl Pane {
     /// The sidebar heading each pane is listed under.
     fn group(self) -> &'static str {
         match self {
-            Self::Profile | Self::General | Self::Settings => "GENERAL",
+            Self::Profile | Self::General | Self::Settings | Self::Typing => "GENERAL",
             Self::Appearance | Self::Sounds => "PERSONALIZE",
             Self::Modes | Self::Commands | Self::Dictionary => "WORKFLOWS",
             Self::Meetings | Self::History => "LIBRARY",
@@ -673,6 +678,7 @@ impl Pane {
     fn icon(self) -> NavigationIcon {
         match self {
             Self::Settings => NavigationIcon::Settings,
+            Self::Typing => NavigationIcon::Typing,
             Self::General => NavigationIcon::General,
             Self::Appearance => NavigationIcon::Appearance,
             Self::Sounds => NavigationIcon::Sounds,
@@ -699,6 +705,7 @@ impl Pane {
             DeveloperPane::HudLab => Self::HudLab,
             DeveloperPane::Commands => Self::Commands,
             DeveloperPane::Dictionary => Self::Dictionary,
+            DeveloperPane::Typing => Self::Typing,
             DeveloperPane::Meetings => Self::Meetings,
             DeveloperPane::Activity => Self::Activity,
         }
@@ -716,6 +723,7 @@ impl Pane {
             Self::HudLab => DeveloperPane::HudLab,
             Self::Commands => DeveloperPane::Commands,
             Self::Dictionary => DeveloperPane::Dictionary,
+            Self::Typing => DeveloperPane::Typing,
             Self::Meetings => DeveloperPane::Meetings,
             Self::Activity => DeveloperPane::Activity,
         }
@@ -1068,6 +1076,9 @@ pub struct AppWindow {
     indicator_alignment_spring: ToggleSpring,
     theme_spring: ToggleSpring,
     menu_bar_icon_toggle: ToggleSpring,
+    typing_suggest_toggle: ToggleSpring,
+    typing_learn_toggle: ToggleSpring,
+    typing_forget_armed: bool,
     profile_name: ProcessingInput,
     appearance_clock: Instant,
     smart_editing_toggles: [ToggleSpring; SMART_EDITING_ROWS.len()],
@@ -1510,6 +1521,9 @@ impl AppWindow {
             ) as f32),
             theme_spring: ToggleSpring::at(theme_index(settings.theme) as f32),
             menu_bar_icon_toggle: ToggleSpring::new(settings.show_menu_bar_icon),
+            typing_suggest_toggle: ToggleSpring::new(settings.typing.enabled),
+            typing_learn_toggle: ToggleSpring::new(settings.typing.learn_from_typing),
+            typing_forget_armed: false,
             profile_name,
             appearance_clock: Instant::now(),
             bangla_digits_spring: ToggleSpring::at(bangla_digits_index(
@@ -1728,6 +1742,7 @@ impl AppWindow {
             }
             Pane::Modes => self.ensure_application_catalog_load(),
             Pane::Dictionary => self.reload_dictionary(cx),
+            Pane::Typing => self.typing_forget_armed = false,
             Pane::Settings => self.permission_refresh_at = Instant::now(),
             Pane::Appearance => self.appearance_clock = Instant::now(),
             Pane::General | Pane::Sounds => {}
@@ -9057,6 +9072,7 @@ impl Render for AppWindow {
             Pane::Meetings => self.render_meetings(window, cx),
             Pane::Commands => self.render_commands(window, cx),
             Pane::Dictionary => self.render_dictionary(window, cx),
+            Pane::Typing => self.render_typing(window, cx),
             Pane::Activity => self.render_activity(cx),
             Pane::History => self.render_history(cx),
             Pane::Modes => self.render_modes(window, cx),
@@ -9142,6 +9158,10 @@ impl Render for AppWindow {
             }))
             .on_action(cx.listener(|this, _: &ShowDictionary, window, cx| {
                 this.select_pane(Pane::Dictionary, cx);
+                window.activate_window();
+            }))
+            .on_action(cx.listener(|this, _: &ShowTyping, window, cx| {
+                this.select_pane(Pane::Typing, cx);
                 window.activate_window();
             }))
             .on_action(cx.listener(|this, _: &ShowNotetaker, window, cx| {
@@ -9683,7 +9703,7 @@ fn format_count(count: usize) -> String {
 
 /// Hello's own release number. The engine underneath keeps its upstream
 /// version (CARGO_PKG_VERSION) for local API and SDK compatibility.
-pub(crate) const APP_VERSION: &str = "1.0.5";
+pub(crate) const APP_VERSION: &str = "1.0.6";
 
 fn theme_index(theme: ColorTheme) -> usize {
     ColorTheme::ALL
@@ -11056,6 +11076,135 @@ fn is_function_key(label: &str) -> bool {
 }
 
 impl AppWindow {
+    fn render_typing(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
+        let suggest_position = self.typing_suggest_toggle.render_position(window);
+        let learn_position = self.typing_learn_toggle.render_position(window);
+        let enabled = self.settings.typing.enabled;
+        let stats = crate::typing::stats();
+        let armed = self.typing_forget_armed;
+        let suggest_row = settings_row(
+            "Suggest while typing",
+            "Grey text next to the cursor in any app. Press Tab to accept it, or keep typing.",
+            toggle(suggest_position),
+        )
+        .id("typing-suggest")
+        .on_click(cx.listener(|this, _, _, cx| {
+            let enabled = !this.settings.typing.enabled;
+            if this.update_settings(cx, |settings| settings.typing.enabled = enabled) {
+                this.typing_suggest_toggle.set_enabled(enabled);
+            }
+        }));
+        let learn_row = settings_row(
+            "Learn from what you type",
+            "Hello remembers the words and phrases you type, on this Mac only. Off, it learns from your dictations alone.",
+            toggle(learn_position),
+        )
+        .id("typing-learn")
+        .border_b_0()
+        .on_click(cx.listener(|this, _, _, cx| {
+            let learn = !this.settings.typing.learn_from_typing;
+            if this.update_settings(cx, |settings| settings.typing.learn_from_typing = learn) {
+                this.typing_learn_toggle.set_enabled(learn);
+            }
+        }));
+        let value = |text: String| {
+            div()
+                .text_size(px(13.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(rgb(TEXT))
+                .child(text)
+        };
+        let status: String = if !enabled {
+            "Off. Turn on Suggest while typing and Hello starts learning.".into()
+        } else if stats.words == 0 {
+            "Learning. Suggestions begin once Hello has seen how you write.".into()
+        } else if stats.words < 300 {
+            "Still learning. Suggestions get more frequent as Hello sees more of your writing."
+                .into()
+        } else {
+            "Hello suggests words it has seen you use often.".into()
+        };
+        let last_learned = if stats.last_learned_ms == 0 {
+            "\u{2014}".to_string()
+        } else {
+            format!(
+                "{} at {}",
+                history_day_label(stats.last_learned_ms),
+                clock_time(stats.last_learned_ms)
+            )
+        };
+        let forget = glyph_button(
+            Glyph::Trash,
+            if armed {
+                "Really forget?"
+            } else {
+                "Forget everything"
+            },
+        )
+        .id("typing-forget")
+        .when(armed, |button| {
+            button
+                .border_color(rgb(DANGER_BORDER))
+                .bg(rgb(DANGER_SURFACE))
+                .text_color(rgb(NEGATIVE))
+        })
+        .on_click(cx.listener(|this, _, _, cx| {
+            if this.typing_forget_armed {
+                crate::typing::forget();
+                this.typing_forget_armed = false;
+            } else {
+                this.typing_forget_armed = true;
+            }
+            cx.notify();
+        }));
+        settings_pane_titled(
+            "Typing",
+            "typing-scroll",
+            div()
+                .flex()
+                .flex_col()
+                .child(settings_section_label("HELLO TYPE"))
+                .child(settings_panel().child(suggest_row).child(learn_row))
+                .child(settings_section_label("WHAT HELLO HAS LEARNED"))
+                .child(
+                    settings_panel()
+                        .child(
+                            settings_row("Status", status, div())
+                                .id("typing-status"),
+                        )
+                        .child(settings_row(
+                            "Words",
+                            "Different words seen in your typing and dictations",
+                            value(format_count(stats.words)),
+                        ))
+                        .child(settings_row(
+                            "Sentences",
+                            "Sentences learned so far",
+                            value(format_count(stats.sentences as usize)),
+                        ))
+                        .child(settings_row(
+                            "Suggestions accepted",
+                            "Times you pressed Tab on a suggestion",
+                            value(format_count(stats.accepted as usize)),
+                        ))
+                        .child(
+                            settings_row("Last learned", "", value(last_learned)).border_b_0(),
+                        ),
+                )
+                .child(settings_section_label("PRIVACY"))
+                .child(
+                    settings_panel().child(
+                        settings_row(
+                            "Everything stays on this Mac",
+                            "What Hello learns lives in typing-model.json in its data folder and never leaves your Mac. Hello never reads password fields, pauses while another app holds secure input, and skips its own window. Forget everything moves the file to the Trash.",
+                            forget,
+                        )
+                        .border_b_0(),
+                    ),
+                ),
+        )
+    }
+
     fn dictionary_editor(cx: &mut Context<Self>) -> DictionaryEditor {
         let search = cx.new(|cx| TextInput::picker(cx, "Search dictionary", ""));
         let changed = cx.subscribe(&search, |_, _, _: &TextChanged, cx| cx.notify());
@@ -12718,6 +12867,7 @@ mod tests {
                 Pane::Profile,
                 Pane::General,
                 Pane::Settings,
+                Pane::Typing,
                 Pane::Appearance,
                 Pane::Sounds,
                 Pane::Modes,
@@ -12737,6 +12887,7 @@ mod tests {
                 Pane::Profile,
                 Pane::General,
                 Pane::Settings,
+                Pane::Typing,
                 Pane::Appearance,
                 Pane::Sounds,
                 Pane::Modes,

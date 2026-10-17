@@ -473,6 +473,15 @@ unsafe extern "C" fn event_callback(
             .reset();
         return event;
     }
+    // Hello Type watches typing and takes Tab while a suggestion is on screen.
+    if let InputEvent::Key { code, down, flags } = input
+        && matches!(
+            crate::typing::observe_key(code, down, flags),
+            crate::typing::KeyDecision::Swallow
+        )
+    {
+        return ptr::null_mut();
+    }
     let delivered = send_input(context, input, capture_at);
     let mut suppression = context
         .shortcut_suppression

@@ -80,6 +80,8 @@ struct MeetingUi {
     status_actions: Option<Receiver<crate::status_item::StatusItemAction>>,
     transcription_preparation: TranscriptionPreparation,
     model_menu_settings: AppSettings,
+    /// Suggestions from Hello Type, drawn by the main loop.
+    typing_overlay: Option<Receiver<crate::typing::OverlayCommand>>,
 }
 
 impl MeetingUi {
@@ -212,6 +214,7 @@ pub fn run(shutdown: &'static AtomicBool, launch: Launch) -> Result<()> {
     let app_event_path = listener
         .as_ref()
         .map(|listener| listener.event_path.clone());
+    let typing_enabled = listener.is_some();
     let event_log = app_event_path
         .as_ref()
         .map(|path| crate::events::EventLog::create(path))
@@ -409,13 +412,13 @@ pub fn run(shutdown: &'static AtomicBool, launch: Launch) -> Result<()> {
             KeyBinding::new("cmd-0", crate::app_window::ShowProfile, None),
             KeyBinding::new("cmd-1", crate::app_window::ShowGeneral, None),
             KeyBinding::new("cmd-2", crate::app_window::ShowSettings, None),
-            KeyBinding::new("cmd-3", crate::app_window::ShowAppearance, None),
-            KeyBinding::new("cmd-4", crate::app_window::ShowSounds, None),
-            KeyBinding::new("cmd-5", crate::app_window::ShowModes, None),
-            KeyBinding::new("cmd-6", crate::app_window::ShowCommands, None),
-            KeyBinding::new("cmd-7", crate::app_window::ShowDictionary, None),
-            KeyBinding::new("cmd-8", crate::app_window::ShowNotetaker, None),
-            KeyBinding::new("cmd-9", crate::app_window::ShowHistory, None),
+            KeyBinding::new("cmd-3", crate::app_window::ShowTyping, None),
+            KeyBinding::new("cmd-4", crate::app_window::ShowAppearance, None),
+            KeyBinding::new("cmd-5", crate::app_window::ShowSounds, None),
+            KeyBinding::new("cmd-6", crate::app_window::ShowModes, None),
+            KeyBinding::new("cmd-7", crate::app_window::ShowCommands, None),
+            KeyBinding::new("cmd-8", crate::app_window::ShowDictionary, None),
+            KeyBinding::new("cmd-9", crate::app_window::ShowNotetaker, None),
         ]);
         cx.bind_keys(crate::text_input::key_bindings());
         cx.on_action(move |_: &crate::app_window::CloseWindow, cx| {
@@ -478,6 +481,7 @@ pub fn run(shutdown: &'static AtomicBool, launch: Launch) -> Result<()> {
                     MenuItem::separator(),
                     MenuItem::action("General", crate::app_window::ShowGeneral),
                     MenuItem::action("Dictation", crate::app_window::ShowSettings),
+                    MenuItem::action("Typing", crate::app_window::ShowTyping),
                     MenuItem::separator(),
                     MenuItem::action("Appearance", crate::app_window::ShowAppearance),
                     MenuItem::action("Sounds", crate::app_window::ShowSounds),
@@ -648,6 +652,8 @@ pub fn run(shutdown: &'static AtomicBool, launch: Launch) -> Result<()> {
         .detach();
 
         let ui_history = history.clone();
+        // Hello Type runs only in the real app, next to the dictation listener.
+        let typing_overlay = typing_enabled.then(|| crate::typing::start(history.clone()));
         cx.spawn(async move |cx| {
             drive_ui(
                 event_receiver,
@@ -665,6 +671,7 @@ pub fn run(shutdown: &'static AtomicBool, launch: Launch) -> Result<()> {
                     status_actions,
                     transcription_preparation,
                     model_menu_settings: settings,
+                    typing_overlay,
                 },
                 shutdown,
                 indicator_enabled,
@@ -696,6 +703,7 @@ async fn drive_ui(
     let mut secure_input_reported = false;
     let mut secure_input_check_at = Instant::now();
     let mut stuck_key_check_at: Option<Instant> = None;
+    let mut typing_overlay: Option<crate::typing_overlay::TypingOverlay> = None;
     let mut dictation_indicator = indicator_enabled.then(DictationIndicatorUi::new);
     let mut model_menu_refresh_at = Instant::now();
     let mut extras_refresh_at = Instant::now();
@@ -735,6 +743,21 @@ async fn drive_ui(
                 }
                 Ok(_) => {}
                 Err(error) => tracing::warn!(%error, "could not check for stuck keys"),
+            }
+        }
+        if let Some(commands) = &ui.typing_overlay {
+            while let Ok(command) = commands.try_recv() {
+                let Some(mtm) = objc2::MainThreadMarker::new() else {
+                    break;
+                };
+                let overlay = typing_overlay
+                    .get_or_insert_with(|| crate::typing_overlay::TypingOverlay::new(mtm));
+                match command {
+                    crate::typing::OverlayCommand::Show { text, caret } => {
+                        overlay.show(&text, caret, mtm)
+                    }
+                    crate::typing::OverlayCommand::Hide => overlay.hide(),
+                }
             }
         }
         if let Some(notice) = crate::notice::take() {

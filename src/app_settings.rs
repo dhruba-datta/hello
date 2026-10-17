@@ -893,6 +893,7 @@ pub struct AppSettings {
     pub notetaker: NotetakerSettings,
     pub dictation_processing: DictationProcessingSettings,
     pub history_retention: crate::history::HistoryRetention,
+    pub typing: crate::typing::TypingSettings,
     #[serde(skip_serializing)]
     pub text_replacements: Vec<TextReplacement>,
 }
@@ -925,6 +926,7 @@ impl Default for AppSettings {
             notetaker: NotetakerSettings::default(),
             dictation_processing: DictationProcessingSettings::default(),
             history_retention: crate::history::HistoryRetention::default(),
+            typing: crate::typing::TypingSettings::default(),
             text_replacements: Vec::new(),
         }
     }
@@ -1173,6 +1175,7 @@ impl AppSettings {
         set_transcription_selection(&self.transcription, self.second_language());
         set_microphone_selection(self.microphone.as_deref());
         crate::config::update_dictation_profiles(&self.dictation_processing);
+        crate::typing::apply_settings(&self.typing);
     }
 
     /// Mode activations saved while Finder showed filename extensions carry a

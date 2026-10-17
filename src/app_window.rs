@@ -11128,15 +11128,19 @@ impl AppWindow {
                 "Hello suggests words and phrases it has seen you use often.",
             )
         };
-        let last_learned = if stats.last_learned_ms == 0 {
-            "Not yet".to_string()
-        } else {
-            format!(
-                "{}, {}",
-                history_day_label(stats.last_learned_ms),
-                clock_time(stats.last_learned_ms)
-            )
-        };
+        // Short enough for a quarter-width tile: the day goes in the label when it is
+        // today or yesterday, otherwise the day is the value.
+        let (last_learned_label, last_learned): (&'static str, String) =
+            if stats.last_learned_ms == 0 {
+                ("Last learned", "Not yet".to_string())
+            } else {
+                let day = history_day_label(stats.last_learned_ms);
+                match day.as_str() {
+                    "Today" => ("Last learned today", clock_time(stats.last_learned_ms)),
+                    "Yesterday" => ("Last learned yesterday", clock_time(stats.last_learned_ms)),
+                    _ => ("Last learned", day),
+                }
+            };
         let forget = glyph_button(
             Glyph::Trash,
             if armed {
@@ -11165,9 +11169,9 @@ impl AppWindow {
         settings_pane_titled(
             "Typing",
             "typing-scroll",
+            // A plain block like the General page: inside a flex column the rows did not
+            // push their toggles to the right edge.
             div()
-                .flex()
-                .flex_col()
                 .child(settings_section_label("HELLO TYPE"))
                 .child(settings_panel().child(suggest_row).child(learn_row))
                 .child(settings_section_label("WHAT HELLO HAS LEARNED"))
@@ -11190,7 +11194,7 @@ impl AppWindow {
                         "Accepted with Tab",
                         format_count(stats.accepted as usize),
                     ),
-                    (Glyph::Clock, TINT_ORANGE, "Last learned", last_learned),
+                    (Glyph::Clock, TINT_ORANGE, last_learned_label, last_learned),
                 ]))
                 .child(div().h(px(12.0)))
                 .child(

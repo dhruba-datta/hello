@@ -602,9 +602,15 @@ pub fn run(shutdown: &'static AtomicBool, launch: Launch) -> Result<()> {
         // runs always brings the window back.
         let quiet_entry_available = status_actions.is_some()
             && (show_menu_bar_icon || crate::login_item::launches_at_login());
-        // After an update Sparkle relaunches Hello; show the window so the
-        // user sees it came back.
+        // After an update Sparkle relaunches Hello, and macOS quits and reopens it
+        // after a permission change; show the window so the user sees it came back.
+        let relaunched =
+            shell_preview.is_none() && crate::relaunch::previous_instance_was_just_running();
+        if relaunched {
+            tracing::info!("Hello was relaunched; showing the window");
+        }
         let show_app_on_launch = updated
+            || relaunched
             || should_open_app_on_launch(
                 show_dock_icon,
                 setup_ready,
@@ -709,6 +715,7 @@ async fn drive_ui(
     let mut extras_refresh_at = Instant::now();
     let mut microphones_refresh_at = Instant::now();
     let mut microphones: Vec<String> = Vec::new();
+    let mut heartbeat_at = Instant::now();
 
     loop {
         if shutdown.load(Ordering::Relaxed) {
@@ -734,6 +741,10 @@ async fn drive_ui(
                 tracing::error!(%error, "could not update dictation indicator");
                 return;
             }
+        }
+        if ui.status_actions.is_some() && Instant::now() >= heartbeat_at {
+            crate::relaunch::heartbeat();
+            heartbeat_at = Instant::now() + crate::relaunch::HEARTBEAT_INTERVAL;
         }
         if stuck_key_check_at.is_some_and(|at| Instant::now() >= at) {
             stuck_key_check_at = None;

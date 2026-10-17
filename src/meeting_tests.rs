@@ -465,3 +465,11 @@ fn live_transcription_replays_both_recorded_tracks() {
     }
     fs::remove_dir_all(output).unwrap();
 }
+
+#[test]
+fn a_refused_capture_gets_a_plain_explanation() {
+    let described = describe_failure("could not enumerate screen content: declined");
+    assert!(described.starts_with("macOS did not let Hello hear system audio."));
+    assert!(described.ends_with("(could not enumerate screen content: declined)"));
+    assert_eq!(describe_failure("disk full"), "disk full");
+}

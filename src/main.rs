@@ -84,6 +84,7 @@ mod personal_commands;
 mod recognition;
 #[cfg(target_os = "macos")]
 mod recording_environment;
+mod relaunch;
 #[cfg(target_os = "macos")]
 mod smart_editing;
 #[cfg(target_os = "macos")]

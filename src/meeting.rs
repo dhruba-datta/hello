@@ -550,13 +550,31 @@ fn stamp_ended(manifest: &mut MeetingManifest, ended_at_ms: u64) {
         .get_or_insert(ended_at_ms.saturating_sub(manifest.created_at_ms));
 }
 
+/// The whole error chain, with a plain explanation in front when macOS refused the
+/// system audio capture. The permission switch can show "on" while the stored entry still
+/// belongs to an older build of Hello, so the fix is to remove and re-add it.
+pub fn describe_failure(chain: &str) -> String {
+    let refused = chain.contains("could not enumerate screen content")
+        || chain.contains("ScreenCaptureKit")
+        || chain.contains("could not start meeting capture");
+    if refused {
+        format!(
+            "macOS did not let Hello hear system audio. In System Settings, under Privacy & \
+             Security, Screen & System Audio Recording, remove Hello with the \u{2212} button, add \
+             it again with the + button and turn it on, then open Hello again. ({chain})"
+        )
+    } else {
+        chain.to_string()
+    }
+}
+
 fn persist_meeting_failure(directory: &Path, error: &color_eyre::Report) {
     let result = (|| -> Result<()> {
         let mut manifest = read_manifest(directory)?;
         if manifest.status != MeetingStatus::Complete {
             manifest.status = MeetingStatus::Failed;
             stamp_ended(&mut manifest, now_ms());
-            manifest.error = Some(error.to_string());
+            manifest.error = Some(describe_failure(&format!("{error:#}")));
             write_manifest(directory, &manifest)?;
         }
         Ok(())

@@ -7072,7 +7072,9 @@ impl AppWindow {
                         )
                         .child(div().text_size(px(11.0)).text_color(rgb(MUTED)).child(
                             "Turn on Hello under Screen & System Audio Recording so it \
-                                     can capture the other people in a call.",
+                                     can hear the other people in a call. If Hello is already \
+                                     on there, remove it with \u{2212}, add it again with + and \
+                                     turn it on, then open Hello again.",
                         )),
                 )
                 .child(

@@ -7072,14 +7072,13 @@ impl AppWindow {
                                 .child("Allow Hello to hear your calls"),
                         )
                         .child(div().text_size(px(11.0)).text_color(rgb(MUTED)).child(
-                            "Turn on Hello under Screen & System Audio Recording so it can \
-                                     hear the other people in a call. Already on there? Remove \
-                                     Hello with \u{2212}, add it back and turn it on, then open \
-                                     Hello again.",
+                            "Click Allow, turn on Hello in the list that opens, and let \
+                                     macOS reopen Hello. Hello then hears the other people in \
+                                     a call.",
                         )),
                 )
                 .child(
-                    header_button("Open Settings")
+                    header_button("Allow")
                         .id("meeting-permission")
                         .flex_none()
                         .on_click(cx.listener(|this, _, _, cx| {
@@ -7447,7 +7446,7 @@ impl AppWindow {
                             .when(permission, |header| {
                                 header.child(
                                     div().flex().child(
-                                        header_button("Open Screen & System Audio Recording")
+                                        header_button("Allow Hello to hear calls")
                                             .id("meeting-failure-permission")
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 request_screen_capture_access();
@@ -12027,9 +12026,32 @@ fn screen_capture_allowed() -> bool {
     unsafe { CGPreflightScreenCaptureAccess() }
 }
 
-/// Adds Hello to the Screen & System Audio Recording list and opens it.
+/// Hello's bundle identifier, the key of its privacy entries.
+const BUNDLE_ID: &str = "app.hello.dictation";
+
+/// Asks macOS to let Hello hear calls and opens the Screen & System Audio Recording list.
+///
+/// While Hello is refused, its own entry is cleared first (the owner's choice,
+/// 2026-10-18): an entry made for an older signature of Hello shows "on" in System
+/// Settings yet denies the capture, and only a fresh entry fixes that. macOS then asks
+/// again and stores the current signature. Nothing else in the privacy settings is touched.
 fn request_screen_capture_access() {
-    // SAFETY: shows the system prompt at most once; returns current access.
+    if !screen_capture_allowed() {
+        match ProcessCommand::new("/usr/bin/tccutil")
+            .args(["reset", "ScreenCapture", BUNDLE_ID])
+            .output()
+        {
+            Ok(output) if output.status.success() => {
+                tracing::info!("cleared Hello's own screen and audio recording entry");
+            }
+            Ok(output) => tracing::warn!(
+                stderr = %String::from_utf8_lossy(&output.stderr).trim(),
+                "could not clear Hello's screen and audio recording entry"
+            ),
+            Err(error) => tracing::warn!(%error, "could not run tccutil"),
+        }
+    }
+    // SAFETY: shows the system prompt when Hello has no entry; returns current access.
     let _ = unsafe { CGRequestScreenCaptureAccess() };
     if let Err(error) = ProcessCommand::new("/usr/bin/open")
         .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")

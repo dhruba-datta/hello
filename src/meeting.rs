@@ -559,16 +559,15 @@ pub fn is_permission_failure(error: &str) -> bool {
 
 /// The whole error chain, with a plain explanation in front when macOS refused the
 /// system audio capture. The permission switch can show "on" while the stored entry still
-/// belongs to an older build of Hello, so the fix is to remove and re-add it.
+/// belongs to an older signature of Hello; the Allow button clears it and asks again.
 pub fn describe_failure(chain: &str) -> String {
     let refused = chain.contains("could not enumerate screen content")
         || chain.contains("ScreenCaptureKit")
         || chain.contains("could not start meeting capture");
     if refused {
         format!(
-            "{PERMISSION_FAILURE} In System Settings, under Privacy & Security, Screen & System \
-             Audio Recording, remove Hello with the \u{2212} button, add it again with the + \
-             button and turn it on, then open Hello again. ({chain})"
+            "{PERMISSION_FAILURE} Click Allow below, turn on Hello in the Screen & System Audio \
+             Recording list that opens, and let macOS reopen Hello. ({chain})"
         )
     } else {
         chain.to_string()

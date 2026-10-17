@@ -33,6 +33,13 @@ const CALL_ENDED_AFTER: Duration = Duration::from_secs(20);
 const WINDOW_WIDTH: f32 = 344.0;
 const WINDOW_HEIGHT: f32 = 150.0;
 const WINDOW_MARGIN: f32 = 18.0;
+const NOTICE_HEIGHT: f32 = 98.0;
+/// How long a notice stays on screen.
+const NOTICE_DURATION: Duration = Duration::from_secs(8);
+/// Secure input held this long is no longer someone typing a password: say so once.
+const SECURE_INPUT_PATIENCE: Duration = Duration::from_secs(15);
+/// The pause after a dictation ends before Hello checks for stuck modifier keys.
+const STUCK_KEY_CHECK_DELAY: Duration = Duration::from_millis(400);
 
 enum ControllerCommand {
     Record(MeetingCandidate),
@@ -184,6 +191,9 @@ pub fn run(shutdown: &'static AtomicBool, launch: Launch) -> Result<()> {
     } else {
         AppSettings::load()?
     };
+    if shell_preview.is_none() {
+        crate::dictionary::load_at_startup();
+    }
     let show_dock_icon = settings.show_dock_icon;
     let show_menu_bar_icon = settings.show_menu_bar_icon;
     let setup_ready = crate::onboarding::status(&settings.transcription).ready();
@@ -403,8 +413,9 @@ pub fn run(shutdown: &'static AtomicBool, launch: Launch) -> Result<()> {
             KeyBinding::new("cmd-4", crate::app_window::ShowSounds, None),
             KeyBinding::new("cmd-5", crate::app_window::ShowModes, None),
             KeyBinding::new("cmd-6", crate::app_window::ShowCommands, None),
-            KeyBinding::new("cmd-7", crate::app_window::ShowNotetaker, None),
-            KeyBinding::new("cmd-8", crate::app_window::ShowHistory, None),
+            KeyBinding::new("cmd-7", crate::app_window::ShowDictionary, None),
+            KeyBinding::new("cmd-8", crate::app_window::ShowNotetaker, None),
+            KeyBinding::new("cmd-9", crate::app_window::ShowHistory, None),
         ]);
         cx.bind_keys(crate::text_input::key_bindings());
         cx.on_action(move |_: &crate::app_window::CloseWindow, cx| {
@@ -473,6 +484,7 @@ pub fn run(shutdown: &'static AtomicBool, launch: Launch) -> Result<()> {
                     MenuItem::separator(),
                     MenuItem::action("Modes", crate::app_window::ShowModes),
                     MenuItem::action("Commands", crate::app_window::ShowCommands),
+                    MenuItem::action("Dictionary", crate::app_window::ShowDictionary),
                     MenuItem::separator(),
                     MenuItem::action("Notetaker", crate::app_window::ShowNotetaker),
                     MenuItem::action("History", crate::app_window::ShowHistory),
@@ -557,6 +569,9 @@ pub fn run(shutdown: &'static AtomicBool, launch: Launch) -> Result<()> {
         ]);
         let updated = shell_preview.is_none()
             && crate::sparkle::launched_after_update(crate::app_window::APP_VERSION);
+        if updated {
+            crate::sparkle::refresh_icon_registration();
+        }
         if shell_preview.is_none() {
             crate::sparkle::start();
         }
@@ -676,6 +691,11 @@ async fn drive_ui(
     cx: &mut gpui::AsyncApp,
 ) {
     let mut offer_window: Option<WindowHandle<MeetingOffer>> = None;
+    let mut notice_window: Option<(WindowHandle<NoticeWindow>, Instant)> = None;
+    let mut secure_input_since: Option<Instant> = None;
+    let mut secure_input_reported = false;
+    let mut secure_input_check_at = Instant::now();
+    let mut stuck_key_check_at: Option<Instant> = None;
     let mut dictation_indicator = indicator_enabled.then(DictationIndicatorUi::new);
     let mut model_menu_refresh_at = Instant::now();
     let mut extras_refresh_at = Instant::now();
@@ -689,11 +709,67 @@ async fn drive_ui(
             return;
         }
         while let Ok(event) = indicator_events.try_recv() {
+            if matches!(
+                event,
+                DictationIndicatorEvent::Discarded
+                    | DictationIndicatorEvent::Cancelled
+                    | DictationIndicatorEvent::Failed
+                    | DictationIndicatorEvent::JobCompleted { .. }
+                    | DictationIndicatorEvent::JobCancelled { .. }
+                    | DictationIndicatorEvent::JobFailed { .. }
+            ) {
+                stuck_key_check_at = Some(Instant::now() + STUCK_KEY_CHECK_DELAY);
+            }
             if let Some(dictation_indicator) = &mut dictation_indicator
                 && let Err(error) = cx.update(|cx| dictation_indicator.handle(event, cx))
             {
                 tracing::error!(%error, "could not update dictation indicator");
                 return;
+            }
+        }
+        if stuck_key_check_at.is_some_and(|at| Instant::now() >= at) {
+            stuck_key_check_at = None;
+            match crate::keyboard::release_stuck_modifiers() {
+                Ok(released) if !released.is_empty() => {
+                    tracing::info!(?released, "released stuck modifier keys");
+                }
+                Ok(_) => {}
+                Err(error) => tracing::warn!(%error, "could not check for stuck keys"),
+            }
+        }
+        if let Some(notice) = crate::notice::take() {
+            let _ = cx.update(|cx| {
+                close_window(notice_window.take().map(|(window, _)| window), cx);
+                notice_window = open_notice(notice, cx)
+                    .ok()
+                    .map(|window| (window, Instant::now()));
+            });
+        }
+        if notice_window
+            .as_ref()
+            .is_some_and(|(_, shown)| shown.elapsed() >= NOTICE_DURATION)
+        {
+            let _ = cx.update(|cx| {
+                close_window(notice_window.take().map(|(window, _)| window), cx);
+            });
+        }
+        // Only the real app watches secure input; previews have no status item.
+        if ui.status_actions.is_some() && Instant::now() >= secure_input_check_at {
+            secure_input_check_at = Instant::now() + Duration::from_secs(1);
+            if crate::suppression::secure_input_enabled() {
+                let since = *secure_input_since.get_or_insert_with(Instant::now);
+                if !secure_input_reported && since.elapsed() >= SECURE_INPUT_PATIENCE {
+                    secure_input_reported = true;
+                    crate::notice::show(
+                        crate::desktop_ui::Glyph::Keyboard,
+                        "Hello can't hear its shortcut",
+                        "A password field or secure keyboard entry is active in another app. \
+                         Hello's shortcut works again when that app lets go of the keyboard.",
+                    );
+                }
+            } else {
+                secure_input_since = None;
+                secure_input_reported = false;
             }
         }
         if let Some(dictation_indicator) = &mut dictation_indicator {
@@ -1210,8 +1286,8 @@ fn menu_extras(settings: &AppSettings, microphones: Vec<String>) -> crate::statu
     }
 }
 
-fn popup_options(cx: &App) -> WindowOptions {
-    let window_size = size(px(WINDOW_WIDTH), px(WINDOW_HEIGHT));
+fn popup_options(cx: &App, height: f32) -> WindowOptions {
+    let window_size = size(px(WINDOW_WIDTH), px(height));
     let (display_id, bounds) = cx.primary_display().map_or_else(
         || (None, Bounds::centered(None, window_size, cx)),
         |display| {
@@ -1246,12 +1322,76 @@ fn open_offer(
     commands: SyncSender<ControllerCommand>,
     cx: &mut App,
 ) -> gpui::Result<WindowHandle<MeetingOffer>> {
-    cx.open_window(popup_options(cx), |_, cx| {
+    cx.open_window(popup_options(cx, WINDOW_HEIGHT), |_, cx| {
         cx.new(|_| MeetingOffer {
             candidate,
             commands,
         })
     })
+}
+
+fn open_notice(
+    notice: crate::notice::Notice,
+    cx: &mut App,
+) -> gpui::Result<WindowHandle<NoticeWindow>> {
+    cx.open_window(popup_options(cx, NOTICE_HEIGHT), |_, cx| {
+        cx.new(|_| NoticeWindow { notice })
+    })
+}
+
+/// A short message at the top right of the screen; see `notice.rs`.
+struct NoticeWindow {
+    notice: crate::notice::Notice,
+}
+
+impl Render for NoticeWindow {
+    fn render(&mut self, window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        use crate::desktop_ui::{TINT_ORANGE, glyph_badge};
+        crate::desktop_ui::apply_theme(crate::app_settings::color_theme(), window.appearance());
+        div()
+            .flex()
+            .flex_col()
+            .size_full()
+            .gap_3()
+            .p(px(14.0))
+            .bg(rgb(0x1f1f22))
+            .border_1()
+            .border_color(rgb(0x34343b))
+            .rounded(px(16.0))
+            .shadow_lg()
+            .child(
+                div()
+                    .flex()
+                    .items_start()
+                    .gap_3()
+                    .child(glyph_badge(self.notice.icon, 36.0, TINT_ORANGE))
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w(px(0.0))
+                            .flex()
+                            .flex_col()
+                            .gap(px(3.0))
+                            .child(
+                                div()
+                                    .text_size(px(13.5))
+                                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                                    .text_color(rgb(0xf5f5f7))
+                                    .child(self.notice.title),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(11.5))
+                                    .line_height(px(16.0))
+                                    .text_color(rgb(0x98989d))
+                                    .child(self.notice.body.clone()),
+                            ),
+                    )
+                    .child(secondary_button("dismiss-notice", "OK", |window| {
+                        window.remove_window();
+                    })),
+            )
+    }
 }
 
 fn close_window<T: Render + 'static>(window: Option<WindowHandle<T>>, cx: &mut App) {

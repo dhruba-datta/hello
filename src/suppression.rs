@@ -46,6 +46,18 @@ type EventTapCallback = unsafe extern "C" fn(
     user_info: *mut c_void,
 ) -> EventRef;
 
+#[link(name = "Carbon", kind = "framework")]
+unsafe extern "C" {
+    fn IsSecureEventInputEnabled() -> bool;
+}
+
+/// Whether an app holds secure input (a password field, or a terminal's secure keyboard
+/// entry). While it does, key presses never reach Hello's event tap.
+pub fn secure_input_enabled() -> bool {
+    // SAFETY: A plain query with no arguments.
+    unsafe { IsSecureEventInputEnabled() }
+}
+
 #[link(name = "ApplicationServices", kind = "framework")]
 unsafe extern "C" {
     fn CGEventSourceFlagsState(state_id: u32) -> u64;

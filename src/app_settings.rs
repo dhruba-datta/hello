@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::transcription_models::{TranscriptionModelId, TranscriptionSelection};
 
-pub use crate::smart_editing::SmartEditing;
+pub use crate::smart_editing::{BanglaDigits, SmartEditing};
 
 static RECORDING_AUDIO_BEHAVIOR: AtomicU8 = AtomicU8::new(0);
 static INDICATOR_STYLE: AtomicU8 = AtomicU8::new(0);
@@ -24,6 +24,8 @@ static SMART_EDITING: AtomicU8 = AtomicU8::new(smart_editing_bits(SmartEditing {
     spoken_line_breaks: true,
     numbered_lists: true,
     end_with_period: true,
+    bangla_punctuation: true,
+    bangla_digits: BanglaDigits::Keep,
 }));
 static DOUBLE_TAP_LOCK: AtomicBool = AtomicBool::new(true);
 static DOUBLE_TAP_ONLY: AtomicBool = AtomicBool::new(false);
@@ -1315,6 +1317,8 @@ const fn smart_editing_bits(options: SmartEditing) -> u8 {
         | ((options.spoken_line_breaks as u8) << 2)
         | ((options.numbered_lists as u8) << 3)
         | ((options.end_with_period as u8) << 4)
+        | ((options.bangla_punctuation as u8) << 5)
+        | (options.bangla_digits.encoded() << 6)
 }
 
 pub fn smart_editing() -> SmartEditing {
@@ -1325,6 +1329,8 @@ pub fn smart_editing() -> SmartEditing {
         spoken_line_breaks: bits & 4 != 0,
         numbered_lists: bits & 8 != 0,
         end_with_period: bits & 16 != 0,
+        bangla_punctuation: bits & 32 != 0,
+        bangla_digits: BanglaDigits::decode(bits >> 6),
     }
 }
 
@@ -1819,6 +1825,8 @@ mod tests {
             spoken_line_breaks: true,
             numbered_lists: false,
             end_with_period: true,
+            bangla_punctuation: false,
+            bangla_digits: BanglaDigits::Latin,
         };
         let bits = smart_editing_bits(options);
         SMART_EDITING.store(bits, Ordering::Relaxed);

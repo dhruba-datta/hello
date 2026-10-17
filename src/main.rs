@@ -39,6 +39,7 @@ mod dictation_diagnostics;
 mod dictation_indicator;
 #[cfg(target_os = "macos")]
 mod dictation_processor;
+mod dictionary;
 mod events;
 #[cfg(target_os = "macos")]
 mod feedback;
@@ -68,6 +69,7 @@ mod microphone_activity;
 mod moonshine;
 #[cfg(all(target_os = "macos", debug_assertions))]
 mod moonshine_lab;
+mod notice;
 #[cfg(target_os = "macos")]
 mod onboarding;
 #[cfg(target_os = "macos")]
@@ -320,6 +322,7 @@ enum AppPreviewTarget {
     #[value(alias = "replacements")]
     Modes,
     Commands,
+    Dictionary,
     Meetings,
     Activity,
     History,
@@ -447,6 +450,7 @@ fn main() -> Result<()> {
                 AppPreviewTarget::Profile => developer_control::DeveloperPane::Profile,
                 AppPreviewTarget::Modes => developer_control::DeveloperPane::Modes,
                 AppPreviewTarget::Commands => developer_control::DeveloperPane::Commands,
+                AppPreviewTarget::Dictionary => developer_control::DeveloperPane::Dictionary,
                 AppPreviewTarget::Meetings => developer_control::DeveloperPane::Meetings,
                 AppPreviewTarget::Activity => developer_control::DeveloperPane::Activity,
                 AppPreviewTarget::History => developer_control::DeveloperPane::History,
@@ -481,6 +485,7 @@ fn main() -> Result<()> {
         Command::Listen { device } => {
             let _instance = instance::acquire("listener")?;
             let settings = app_settings::AppSettings::load()?;
+            dictionary::load_at_startup();
             let events = events::EventLog::create(&event_path)?;
             let history = match history::History::open_default(settings.history_retention) {
                 Ok(history) => Some(history),

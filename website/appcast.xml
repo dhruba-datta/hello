@@ -5,19 +5,23 @@
     <link>https://hello.minutecampus.com/appcast.xml</link>
     <language>en</language>
     <item>
-      <title>Hello 1.0.4</title>
-      <pubDate>Sat, 17 Oct 2026 04:55:04 +0000</pubDate>
-      <sparkle:version>5</sparkle:version>
-      <sparkle:shortVersionString>1.0.4</sparkle:shortVersionString>
+      <title>Hello 1.0.5</title>
+      <pubDate>Sat, 17 Oct 2026 05:39:13 +0000</pubDate>
+      <sparkle:version>6</sparkle:version>
+      <sparkle:shortVersionString>1.0.5</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[<h2>Hello 1.0.4</h2><ul><li>A new Hello icon, in the app, the menu bar and the Dock.</li>
-<li>12 new recording indicators, 17 in all. Wave is now the default.</li>
-<li>Place the indicator at the top or bottom, and on the left, in the center or on the right. Click a spot on the new screen map in Appearance.</li>
-<li>Rounded corners are now clean everywhere.</li>
-<li>Hello is now open source: the code, releases and website are at github.com/dhruba-datta/hello.</li></ul>]]></description>
-      <enclosure url="https://github.com/dhruba-datta/hello/releases/download/v1.0.4/Hello.dmg"
-        length="31069200" type="application/octet-stream"
-        sparkle:edSignature="F3MIemBM7QWQwXqG+QU0EelJwOqVsAtmnmaNfbXraUuSDhzMM2szpxxP8NoMBS6+67xmHSx6zBsbUtanc4owCw==" />
+      <description><![CDATA[<h2>Hello 1.0.5</h2><ul><li>Dictionary: add names and terms once and Hello hears them, spells them your way and fixes close misses. Say what a word is often heard as and that is corrected too.</li>
+<li>Snippets: mark a dictionary entry as a snippet and saying its phrase pastes the saved text.</li>
+<li>Add to Dictionary from any dictation in History.</li>
+<li>Bangla punctuation: a full stop after Bangla becomes "।". Choose how numbers are written in Bangla sentences (as spoken, ১২৩ or 123).</li>
+<li>Paste check: if an app ignores the paste, your dictation stays on the clipboard and Hello tells you to press ⌘V.</li>
+<li>Hello says when a password field or secure keyboard entry is stopping its shortcut.</li>
+<li>Modifier keys that macOS still thinks are held are released after each dictation.</li>
+<li>The app icon is refreshed in Finder and the Dock after an update.</li>
+<li>Dictionary is ⌘7; Notetaker and History are now ⌘8 and ⌘9.</li></ul>]]></description>
+      <enclosure url="https://github.com/dhruba-datta/hello/releases/download/v1.0.5/Hello.dmg"
+        length="31105793" type="application/octet-stream"
+        sparkle:edSignature="NprvlTN4h6aSnpCoVdHzqIZS/+osRh9PUy6fR9c6s5YzGYW47xxBSGYOisgPvmcdC8edICusVhhEYo/NjzBCBw==" />
     </item>
   </channel>
 </rss>

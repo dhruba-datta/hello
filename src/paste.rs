@@ -285,11 +285,22 @@ impl Paster {
         )?;
 
         let clipboard_restore = self.clipboard_restore.clone();
+        // Sending presses Enter right after the paste, so the text leaves the field
+        // before it could be checked.
+        let tail = if matches!(mode, PasteMode::Send) {
+            String::new()
+        } else {
+            paste_tail(&text)
+        };
         complete_paste(
             || keyboard::post_command('v'),
             move || {
                 thread::spawn(move || {
                     thread::sleep(Duration::from_millis(500));
+                    let landed = tail.is_empty() || paste_landed(&tail).unwrap_or(true) || {
+                        thread::sleep(Duration::from_millis(700));
+                        paste_landed(&tail).unwrap_or(true)
+                    };
                     let mut restore = clipboard_restore
                         .lock()
                         .unwrap_or_else(|error| error.into_inner());
@@ -300,6 +311,18 @@ impl Paster {
                     if restore.last_change_count != Some(clipboard.changeCount()) {
                         restore.original = None;
                         restore.last_change_count = None;
+                        return;
+                    }
+                    if !landed {
+                        // The app ignored the paste: keep the text on the clipboard so
+                        // the owner can paste it by hand, and say so.
+                        restore.original = None;
+                        restore.last_change_count = None;
+                        crate::notice::show(
+                            crate::desktop_ui::Glyph::Copy,
+                            "Couldn't paste here",
+                            "Your dictation is on the clipboard. Press \u{2318}V to paste it.",
+                        );
                         return;
                     }
                     let Some(previous) = restore.original.take() else {
@@ -320,6 +343,29 @@ impl Paster {
         });
         Ok(())
     }
+}
+
+/// The letters and digits at the end of the pasted text, used to check that it landed.
+fn paste_tail(text: &str) -> String {
+    let tail: String = letters(text).chars().rev().take(24).collect();
+    if tail.chars().count() < 3 {
+        return String::new();
+    }
+    tail.chars().rev().collect()
+}
+
+fn letters(text: &str) -> String {
+    text.chars()
+        .filter(|character| character.is_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+/// Whether the text before the caret ends with the pasted text. `None` when the app
+/// does not expose its text, in which case the paste is taken as landed.
+fn paste_landed(tail: &str) -> Option<bool> {
+    let before = crate::accessibility::text_before_caret(tail.len() * 2 + 32)?;
+    Some(letters(&before).ends_with(tail))
 }
 
 pub(crate) fn commit_prepared_paste<P, T>(

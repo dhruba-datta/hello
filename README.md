@@ -56,7 +56,23 @@ Metal, so dictation is fast and works offline.
 - **On-device models:** choose from several speech models. Each one is downloaded once and
   runs locally.
 - **History:** dictations are kept on your Mac (with a retention setting), searchable and
-  copyable.
+  copyable. "Add to Dictionary" turns a dictation into a dictionary entry.
+- **Paste check:** after pasting, Hello looks at the text field. If the app ignored the paste,
+  your dictation stays on the clipboard and Hello tells you to press ⌘V.
+- **Password fields:** when another app holds secure keyboard input (a password field, or a
+  terminal's secure entry) for a while, Hello explains why its shortcut isn't working.
+- **Stuck keys:** after each dictation Hello releases modifier keys that macOS still thinks are
+  held, so a swallowed key-up never leaves Option or Command stuck.
+
+### Dictionary and snippets
+Names and terms Hello should get right, and short phrases that paste a saved text. Kept in
+`dictionary.json` on your Mac.
+- **Words:** add a name or term once; models that take hints hear it before every dictation
+  (Whisper and the Bangla model), and every model gets a fix-up pass afterwards: the word's
+  spelling and capitals, close misspellings, and anything you listed under "often heard as".
+- **Snippets:** mark an entry as a snippet, say its phrase ("my sign-off"), and Hello pastes the
+  saved text instead. Works for a whole dictation or one sentence of it.
+- **Star** the entries that matter most; they go first in the recognition hints.
 
 ### Smart editing
 Cleans up speech as you dictate. Each rule can be turned on or off:
@@ -65,6 +81,8 @@ Cleans up speech as you dictate. Each rule can be turned on or off:
 - "**new line**" and "**new paragraph**" insert breaks.
 - "**number one … number two …**" becomes a numbered list.
 - **End with a full stop:** adds "." (or "।" after Bangla) when you stop mid-sentence.
+- **Bangla full stop:** a "." the model wrote after Bangla becomes "।" (decimals are kept).
+- **Numbers in Bangla:** keep digits as spoken, or write them as ১২৩ or 123 in Bangla sentences.
 - **Spacing:** a new dictation gets a space (and a capital after a full stop) when it follows
   text that is already there.
 
@@ -157,10 +175,11 @@ or General → About. Updates are signed (Ed25519) and verified before they inst
 | **Sounds** | Sound theme and volume |
 | **Modes** | Per-app replacements and transformations |
 | **Commands** | Voice Commands (optional) |
+| **Dictionary** | Words Hello should know, "often heard as" corrections, snippets |
 | **Notetaker** | Meeting detection, calendar, speaker recognition, and all meeting notes |
 | **History** | Past dictations |
 
-Keyboard: ⌘0 opens Profile, ⌘1–⌘8 open the sidebar items in order, and ⌘, opens General.
+Keyboard: ⌘0 opens Profile, ⌘1–⌘9 open the sidebar items in order, and ⌘, opens General.
 
 ## Speech models
 
@@ -281,7 +300,9 @@ src/                      Rust source (one crate, binary "voice-control")
   recognition.rs          Shortcuts and the dictation listener
   parakeet.rs             Model runtime, language routing, Bangla + English mixing
   transcription*.rs       Model catalog, downloads and transcription service
-  smart_editing.rs        Filler removal, "scratch that", lists, line breaks
+  smart_editing.rs        Filler removal, "scratch that", lists, line breaks, Bangla digits
+  dictionary.rs           Personal dictionary: hints, corrections and snippets
+  notice.rs               Short notices (paste check, secure input)
   meeting*.rs             Notetaker: detection, recording, transcripts
   meeting_context.rs      Where a meeting is (platform, app, profile, link)
   calendar.rs             Calendar matching

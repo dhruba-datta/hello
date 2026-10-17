@@ -1,6 +1,6 @@
 //! Local, deterministic cleanup of a dictated transcript before mode processing:
-//! filler-word removal, "scratch that", spoken line breaks, numbered lists, and a
-//! closing full stop.
+//! filler-word removal, "scratch that", spoken line breaks, numbered lists, a closing
+//! full stop, and Bangla punctuation and digits.
 //! Everything here is offline rule-based text processing; no model or network.
 
 use std::sync::OnceLock;
@@ -21,6 +21,10 @@ pub struct SmartEditing {
     pub numbered_lists: bool,
     /// A dictation that stops mid-sentence ends with a full stop ("।" after Bangla).
     pub end_with_period: bool,
+    /// A full stop after Bangla text becomes "।" wherever the model wrote one.
+    pub bangla_punctuation: bool,
+    /// How digits are written in Bangla sentences.
+    pub bangla_digits: BanglaDigits,
 }
 
 impl Default for SmartEditing {
@@ -31,6 +35,8 @@ impl Default for SmartEditing {
             spoken_line_breaks: true,
             numbered_lists: true,
             end_with_period: true,
+            bangla_punctuation: true,
+            bangla_digits: BanglaDigits::Keep,
         }
     }
 }
@@ -44,6 +50,8 @@ impl SmartEditing {
             spoken_line_breaks: false,
             numbered_lists: false,
             end_with_period: false,
+            bangla_punctuation: false,
+            bangla_digits: BanglaDigits::Keep,
         }
     }
 
@@ -53,6 +61,49 @@ impl SmartEditing {
             || self.spoken_line_breaks
             || self.numbered_lists
             || self.end_with_period
+            || self.bangla_punctuation
+            || !matches!(self.bangla_digits, BanglaDigits::Keep)
+    }
+}
+
+/// Digits in sentences that contain Bangla.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BanglaDigits {
+    /// As the model wrote them.
+    #[default]
+    Keep,
+    /// Bangla digits: ১২৩.
+    Bangla,
+    /// Latin digits: 123.
+    Latin,
+}
+
+impl BanglaDigits {
+    pub const ALL: [Self; 3] = [Self::Keep, Self::Bangla, Self::Latin];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Keep => "Keep",
+            Self::Bangla => "\u{09e7}\u{09e8}\u{09e9}",
+            Self::Latin => "123",
+        }
+    }
+
+    pub const fn encoded(self) -> u8 {
+        match self {
+            Self::Keep => 0,
+            Self::Bangla => 1,
+            Self::Latin => 2,
+        }
+    }
+
+    pub const fn decode(value: u8) -> Self {
+        match value {
+            1 => Self::Bangla,
+            2 => Self::Latin,
+            _ => Self::Keep,
+        }
     }
 }
 
@@ -74,10 +125,96 @@ pub fn apply(text: &str, options: SmartEditing) -> String {
         text = apply_numbered_list(&text);
     }
     let text = tidy(&text);
-    if options.end_with_period {
+    let text = if options.end_with_period {
         end_sentence(&text)
     } else {
         text
+    };
+    let text = if options.bangla_punctuation {
+        bangla_full_stops(&text)
+    } else {
+        text
+    };
+    convert_digits(&text, options.bangla_digits)
+}
+
+fn is_bangla_digit(character: char) -> bool {
+    ('\u{09e6}'..='\u{09ef}').contains(&character)
+}
+
+fn is_digit(character: char) -> bool {
+    character.is_ascii_digit() || is_bangla_digit(character)
+}
+
+/// A full stop after Bangla becomes the dari, except inside a number like ৩.৫.
+fn bangla_full_stops(text: &str) -> String {
+    let characters: Vec<char> = text.chars().collect();
+    let mut output = String::with_capacity(text.len());
+    for (index, &character) in characters.iter().enumerate() {
+        if character == '.' {
+            let previous = characters[..index].iter().rev().find(|previous| {
+                !previous.is_whitespace()
+                    && !matches!(previous, '"' | '\'' | ')' | '\u{201d}' | '\u{2019}')
+            });
+            let decimal = characters[..index]
+                .last()
+                .is_some_and(|last| is_digit(*last))
+                && characters
+                    .get(index + 1)
+                    .is_some_and(|next| is_digit(*next));
+            if previous.is_some_and(|previous| is_bangla(*previous)) && !decimal {
+                output.push('\u{0964}');
+                continue;
+            }
+        }
+        output.push(character);
+    }
+    output
+}
+
+/// Rewrites digits in sentences that contain Bangla letters. Latin digits are also used
+/// in sentences without Bangla, so only Bangla → Latin applies to the whole text.
+fn convert_digits(text: &str, choice: BanglaDigits) -> String {
+    match choice {
+        BanglaDigits::Keep => text.to_string(),
+        BanglaDigits::Latin => text
+            .chars()
+            .map(|character| {
+                if is_bangla_digit(character) {
+                    char::from(b'0' + (character as u32 - 0x09e6) as u8)
+                } else {
+                    character
+                }
+            })
+            .collect(),
+        BanglaDigits::Bangla => {
+            let mut output = String::with_capacity(text.len() * 2);
+            let mut sentence = String::new();
+            let flush = |sentence: &mut String, output: &mut String| {
+                let bangla = sentence
+                    .chars()
+                    .any(|character| is_bangla(character) && !is_bangla_digit(character));
+                for character in sentence.chars() {
+                    if bangla && character.is_ascii_digit() {
+                        output.push(
+                            char::from_u32(0x09e6 + u32::from(character as u8 - b'0'))
+                                .unwrap_or(character),
+                        );
+                    } else {
+                        output.push(character);
+                    }
+                }
+                sentence.clear();
+            };
+            for character in text.chars() {
+                sentence.push(character);
+                if is_sentence_end(character) || character == '\u{0964}' {
+                    flush(&mut sentence, &mut output);
+                }
+            }
+            flush(&mut sentence, &mut output);
+            output
+        }
     }
 }
 
@@ -388,6 +525,39 @@ mod tests {
     }
 
     #[test]
+    fn bangla_full_stops_become_the_dari() {
+        let options = SmartEditing {
+            bangla_punctuation: true,
+            ..SmartEditing::disabled()
+        };
+        assert_eq!(apply("আমি যাব. তুমি আসবে.", options), "আমি যাব। তুমি আসবে।");
+        assert_eq!(apply("দাম ৩.৫ টাকা.", options), "দাম ৩.৫ টাকা।");
+        assert_eq!(
+            apply("See you at 5. ঠিক আছে.", options),
+            "See you at 5. ঠিক আছে।"
+        );
+        assert_eq!(apply("Done.", options), "Done.");
+    }
+
+    #[test]
+    fn digits_follow_the_bangla_digits_choice() {
+        let bangla = SmartEditing {
+            bangla_digits: BanglaDigits::Bangla,
+            ..SmartEditing::disabled()
+        };
+        assert_eq!(
+            apply("আমি 25 টা কিনব। Call me at 5.", bangla),
+            "আমি ২৫ টা কিনব। Call me at 5."
+        );
+        let latin = SmartEditing {
+            bangla_digits: BanglaDigits::Latin,
+            ..SmartEditing::disabled()
+        };
+        assert_eq!(apply("আমি ২৫ টা কিনব।", latin), "আমি 25 টা কিনব।");
+        assert_eq!(apply("আমি ২৫ টা", SmartEditing::disabled()), "আমি ২৫ টা");
+    }
+
+    #[test]
     fn disabled_options_leave_text_untouched() {
         let text = "Um, so new line scratch that number one a number two b";
         assert_eq!(apply(text, SmartEditing::disabled()), text);
@@ -475,8 +645,12 @@ mod tests {
         assert_eq!(decoded, SmartEditing::default());
         assert!(decoded.is_enabled());
         let off: SmartEditing =
-            serde_json::from_str(r#"{"remove_fillers":false,"scratch_that":false,"spoken_line_breaks":false,"numbered_lists":false,"end_with_period":false}"#)
+            serde_json::from_str(r#"{"remove_fillers":false,"scratch_that":false,"spoken_line_breaks":false,"numbered_lists":false,"end_with_period":false,"bangla_punctuation":false}"#)
                 .unwrap();
         assert!(!off.is_enabled());
+        // Settings written before 1.0.5 get the Bangla full stop on and digits kept.
+        let old: SmartEditing = serde_json::from_str(r#"{"remove_fillers":false}"#).unwrap();
+        assert!(old.bangla_punctuation);
+        assert_eq!(old.bangla_digits, BanglaDigits::Keep);
     }
 }

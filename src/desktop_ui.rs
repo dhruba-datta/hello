@@ -127,6 +127,7 @@ pub(crate) enum NavigationIcon {
     Activity,
     Appearance,
     Commands,
+    Dictionary,
     General,
     History,
     HudLab,
@@ -164,6 +165,10 @@ impl NavigationIcon {
             // Terminal prompt.
             Self::Commands => {
                 r#"<rect x="3" y="4.5" width="18" height="15" rx="3.5"/><path d="m7.5 9.5 2.5 2.5-2.5 2.5M12.5 14.5h4"/>"#
+            }
+            // Open book.
+            Self::Dictionary => {
+                r#"<path d="M12 6.5c-1.6-1.4-3.8-2-6.5-2H4v13h1.5c2.7 0 4.9.6 6.5 2 1.6-1.4 3.8-2 6.5-2H20v-13h-1.5c-2.7 0-4.9.6-6.5 2z"/><path d="M12 6.5v13"/>"#
             }
             // Clock.
             Self::History => r#"<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>"#,
@@ -900,10 +905,11 @@ pub(crate) fn error_message(message: &'static str, error: String) -> AnyElement 
 
 /// Line glyphs for page content: badges, buttons and chips. Same 24-unit
 /// stroke grid as the sidebar icons.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Glyph {
     Apps,
     Bolt,
+    Book,
     Clock,
     Copy,
     Cursor,
@@ -918,6 +924,7 @@ pub(crate) enum Glyph {
     Replace,
     Sparkles,
     Speed,
+    Star,
     Text,
     Trash,
     Wand,
@@ -930,6 +937,9 @@ impl Glyph {
                 r#"<rect x="4" y="4" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="2"/>"#
             }
             Self::Bolt => r#"<path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/>"#,
+            Self::Book => {
+                r#"<path d="M12 6.5c-1.6-1.4-3.8-2-6.5-2H4v13h1.5c2.7 0 4.9.6 6.5 2 1.6-1.4 3.8-2 6.5-2H20v-13h-1.5c-2.7 0-4.9.6-6.5 2z"/><path d="M12 6.5v13"/>"#
+            }
             Self::Clock => r#"<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>"#,
             Self::Copy => {
                 r#"<rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/>"#
@@ -961,6 +971,9 @@ impl Glyph {
             }
             Self::Speed => {
                 r#"<path d="M4.5 17a8.5 8.5 0 1 1 15 0"/><path d="m12 13 4-5"/><circle cx="12" cy="13.5" r="1"/>"#
+            }
+            Self::Star => {
+                r#"<path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1.1 5.9L12 16.9l-5.3 2.8 1.1-5.9-4.3-4.1 5.9-.8z"/>"#
             }
             Self::Text => r#"<path d="M4 6h16M4 11h16M4 16h10"/>"#,
             Self::Trash => {

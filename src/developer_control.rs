@@ -25,6 +25,7 @@ pub enum DeveloperPane {
     History,
     HudLab,
     Commands,
+    Dictionary,
     Meetings,
     Activity,
 }

@@ -127,6 +127,40 @@ fn is_update(previous: Option<&str>, version: &str, checked_before: bool) -> boo
     }
 }
 
+/// After an update, macOS sometimes keeps showing the old icon in Finder and the Dock.
+/// Registering the bundle again and touching it makes it reread the icon.
+pub fn refresh_icon_registration() {
+    let Some(bundle) = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.ancestors().nth(3).map(std::path::Path::to_path_buf))
+        .filter(|bundle| {
+            bundle
+                .extension()
+                .is_some_and(|extension| extension == "app")
+        })
+    else {
+        return;
+    };
+    std::thread::spawn(move || {
+        let register = "/System/Library/Frameworks/CoreServices.framework/Frameworks/\
+                        LaunchServices.framework/Support/lsregister";
+        let result = std::process::Command::new(register)
+            .args(["-f", "-R"])
+            .arg(&bundle)
+            .status();
+        if let Err(error) = result {
+            tracing::warn!(%error, "could not re-register the app bundle");
+        }
+        if let Err(error) = std::process::Command::new("/usr/bin/touch")
+            .arg(&bundle)
+            .status()
+        {
+            tracing::warn!(%error, "could not touch the app bundle");
+        }
+        tracing::info!(bundle = %bundle.display(), "refreshed the app icon registration");
+    });
+}
+
 pub fn start() {
     if updates_managed() {
         tracing::info!("updates are disabled in this local build");

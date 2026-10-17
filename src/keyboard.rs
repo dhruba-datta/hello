@@ -95,6 +95,34 @@ unsafe extern "C" {
     fn CGEventKeyboardSetUnicodeString(event: EventRef, length: usize, text: *const u16);
     fn CGEventSetIntegerValueField(event: EventRef, field: u32, value: i64);
     fn CGEventPost(tap: u32, event: EventRef);
+    fn CGEventSourceFlagsState(state_id: u32) -> u64;
+}
+
+const HID_SYSTEM_STATE: u32 = 1;
+const COMBINED_SESSION_STATE: u32 = 0;
+
+/// Releases modifiers the session still thinks are held while the keyboard says they are
+/// not: that happens when Hello's shortcut swallowed a key-up. Returns the names released.
+pub fn release_stuck_modifiers() -> Result<Vec<&'static str>> {
+    // SAFETY: Plain state queries.
+    let physical = unsafe { CGEventSourceFlagsState(HID_SYSTEM_STATE) };
+    let session = unsafe { CGEventSourceFlagsState(COMBINED_SESSION_STATE) };
+    let mut flags = session;
+    let mut released = Vec::new();
+    for (name, flag, key_code) in [
+        ("command", COMMAND_FLAG, COMMAND_KEY_CODE),
+        ("shift", SHIFT_FLAG, SHIFT_KEY_CODE),
+        ("option", OPTION_FLAG, OPTION_KEY_CODE),
+        ("control", CONTROL_FLAG, CONTROL_KEY_CODE),
+    ] {
+        if session & flag == 0 || physical & flag != 0 {
+            continue;
+        }
+        flags &= !flag;
+        KeyboardEvent::new((key_code, false, flags))?.post();
+        released.push(name);
+    }
+    Ok(released)
 }
 
 pub fn key_code_for(character: char) -> Result<u16> {

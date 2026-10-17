@@ -19,9 +19,9 @@ use gpui::{
 };
 
 use crate::app_settings::{
-    AppSettings, ColorTheme, DictationMode, HotkeyBinding, HotkeyKey, HotkeyModifiers,
-    IndicatorAlignment, IndicatorPosition, IndicatorStyle, LanguageRouting, MeetingAudioRetention,
-    ModifierSide, RecordingAudioBehavior, SmartEditing, TextReplacement,
+    AppSettings, BanglaDigits, ColorTheme, DictationMode, HotkeyBinding, HotkeyKey,
+    HotkeyModifiers, IndicatorAlignment, IndicatorPosition, IndicatorStyle, LanguageRouting,
+    MeetingAudioRetention, ModifierSide, RecordingAudioBehavior, SmartEditing, TextReplacement,
 };
 use crate::application_catalog::InstalledApplication;
 use crate::commands::{CommandConfig, CommandInfo, CommandScope};
@@ -49,6 +49,7 @@ use crate::desktop_ui::{
 };
 use crate::developer_control::DeveloperPane;
 use crate::dictation_indicator::{DictationIndicatorEvent, DictationIndicatorSender, HudTuning};
+use crate::dictionary::{Dictionary, DictionaryEntry};
 use crate::events::{
     CommandOutcome, DictationPhase, EventReader, TranscriptPhase, VoiceEvent, VoiceState, now_ms,
 };
@@ -282,6 +283,7 @@ actions!(
         MinimizeWindow,
         QuitApplication,
         ShowCommands,
+        ShowDictionary,
         ShowHistory,
         ShowModes,
         ShowNotetaker,
@@ -564,6 +566,7 @@ enum Pane {
     HudLab,
     Meetings,
     Commands,
+    Dictionary,
     Activity,
     History,
     Modes,
@@ -605,7 +608,7 @@ impl Pane {
         }
     }
 
-    const ALL: [Self; 11] = [
+    const ALL: [Self; 12] = [
         Self::Profile,
         Self::General,
         Self::Settings,
@@ -613,6 +616,7 @@ impl Pane {
         Self::Sounds,
         Self::Modes,
         Self::Commands,
+        Self::Dictionary,
         Self::Meetings,
         Self::History,
         Self::HudLab,
@@ -630,6 +634,7 @@ impl Pane {
                 | Self::Sounds
                 | Self::Modes
                 | Self::Commands
+                | Self::Dictionary
                 | Self::History => true,
                 Self::Meetings => crate::MEETINGS_ENABLED,
                 Self::HudLab | Self::Activity => developer_features,
@@ -642,6 +647,7 @@ impl Pane {
             Self::HudLab => "HUD Lab",
             Self::Meetings => "Notetaker",
             Self::Commands => "Commands",
+            Self::Dictionary => "Dictionary",
             Self::Activity => "Activity",
             Self::History => "History",
             Self::Modes => "Modes",
@@ -658,7 +664,7 @@ impl Pane {
         match self {
             Self::Profile | Self::General | Self::Settings => "GENERAL",
             Self::Appearance | Self::Sounds => "PERSONALIZE",
-            Self::Modes | Self::Commands => "WORKFLOWS",
+            Self::Modes | Self::Commands | Self::Dictionary => "WORKFLOWS",
             Self::Meetings | Self::History => "LIBRARY",
             Self::HudLab | Self::Activity => "DEVELOPER",
         }
@@ -674,6 +680,7 @@ impl Pane {
             Self::Modes => NavigationIcon::Modes,
             Self::History => NavigationIcon::History,
             Self::Commands => NavigationIcon::Commands,
+            Self::Dictionary => NavigationIcon::Dictionary,
             Self::Meetings => NavigationIcon::Meetings,
             Self::Activity => NavigationIcon::Activity,
             Self::HudLab => NavigationIcon::HudLab,
@@ -691,6 +698,7 @@ impl Pane {
             DeveloperPane::History => Self::History,
             DeveloperPane::HudLab => Self::HudLab,
             DeveloperPane::Commands => Self::Commands,
+            DeveloperPane::Dictionary => Self::Dictionary,
             DeveloperPane::Meetings => Self::Meetings,
             DeveloperPane::Activity => Self::Activity,
         }
@@ -707,6 +715,7 @@ impl Pane {
             Self::History => DeveloperPane::History,
             Self::HudLab => DeveloperPane::HudLab,
             Self::Commands => DeveloperPane::Commands,
+            Self::Dictionary => DeveloperPane::Dictionary,
             Self::Meetings => DeveloperPane::Meetings,
             Self::Activity => DeveloperPane::Activity,
         }
@@ -816,6 +825,23 @@ impl ModeEditors {
 struct ReplacementInputs {
     matched_phrase: ProcessingInput,
     output: ProcessingInput,
+}
+
+/// The Dictionary page: the saved entries and the add/edit form.
+struct DictionaryEditor {
+    dictionary: Dictionary,
+    error: Option<String>,
+    search: ProcessingInput,
+    phrase: ProcessingInput,
+    heard_as: ProcessingInput,
+    body: ProcessingInput,
+    snippet: bool,
+    snippet_toggle: ToggleSpring,
+    /// The form is open; `editing` is the entry it changes, else it adds one.
+    form_open: bool,
+    editing: Option<usize>,
+    /// Shown under the form when Save was pressed with a missing field.
+    form_error: Option<&'static str>,
 }
 
 #[derive(Clone)]
@@ -1044,7 +1070,8 @@ pub struct AppWindow {
     menu_bar_icon_toggle: ToggleSpring,
     profile_name: ProcessingInput,
     appearance_clock: Instant,
-    smart_editing_toggles: [ToggleSpring; 5],
+    smart_editing_toggles: [ToggleSpring; SMART_EDITING_ROWS.len()],
+    bangla_digits_spring: ToggleSpring,
     transcription_hints: ProcessingInput,
     transcription_picker_language: Option<String>,
     transcription_status: PreparationStatus,
@@ -1124,6 +1151,7 @@ pub struct AppWindow {
     history_clear_armed: bool,
     history_retention_open: bool,
     history_copied: Option<u64>,
+    dictionary: DictionaryEditor,
 }
 
 impl AppWindow {
@@ -1397,6 +1425,11 @@ impl AppWindow {
             history
         };
         let history_search = Self::history_search_input(cx);
+        let mut dictionary = Self::dictionary_editor(cx);
+        if preview.is_some() {
+            dictionary.dictionary = sample_dictionary();
+            dictionary.form_open = true;
+        }
         let meeting_notes = Self::meeting_notes_input(cx);
         let meeting_speaker_input = Self::processing_input("Their name", "", cx);
         let detect_meetings = settings.notetaker.detect_meetings;
@@ -1479,6 +1512,9 @@ impl AppWindow {
             menu_bar_icon_toggle: ToggleSpring::new(settings.show_menu_bar_icon),
             profile_name,
             appearance_clock: Instant::now(),
+            bangla_digits_spring: ToggleSpring::at(bangla_digits_index(
+                settings.smart_editing.bangla_digits,
+            ) as f32),
             smart_editing_toggles: smart_editing_flags(settings.smart_editing)
                 .map(ToggleSpring::new),
             transcription_hints,
@@ -1611,6 +1647,7 @@ impl AppWindow {
                 .as_ref()
                 .is_some_and(|preview| preview.open_history_retention),
             history_copied: None,
+            dictionary,
             meeting_tab: MeetingTab::Transcript,
             meeting_notes,
             meeting_notes_id: None,
@@ -1690,6 +1727,7 @@ impl AppWindow {
                 self.ensure_application_catalog_load();
             }
             Pane::Modes => self.ensure_application_catalog_load(),
+            Pane::Dictionary => self.reload_dictionary(cx),
             Pane::Settings => self.permission_refresh_at = Instant::now(),
             Pane::Appearance => self.appearance_clock = Instant::now(),
             Pane::General | Pane::Sounds => {}
@@ -2749,6 +2787,18 @@ impl AppWindow {
                                         .on_click(
                                             cx.listener(move |this, _, _, cx| {
                                                 this.copy_history_entry(id, cx)
+                                            }),
+                                        ),
+                                    )
+                                    .child(
+                                        detail_button(
+                                            Glyph::Book,
+                                            "Add to Dictionary",
+                                            "add-to-dictionary",
+                                        )
+                                        .on_click(
+                                            cx.listener(move |this, _, window, cx| {
+                                                this.add_history_entry_to_dictionary(id, window, cx)
                                             }),
                                         ),
                                     )
@@ -4136,28 +4186,57 @@ impl AppWindow {
             .iter_mut()
             .map(|toggle| toggle.render_position(window))
             .collect();
-        let smart_editing_rows =
-            SMART_EDITING_ROWS
-                .iter()
-                .enumerate()
-                .map(|(index, (title, detail))| {
-                    let row = settings_row(title, *detail, toggle(smart_editing_positions[index]));
-                    let row = if index + 1 == SMART_EDITING_ROWS.len() {
-                        row.border_b_0()
-                    } else {
-                        row
-                    };
-                    row.id(("smart-editing-setting", index))
+        let smart_editing_rows = SMART_EDITING_ROWS
+            .iter()
+            .enumerate()
+            .map(|(index, (title, detail))| {
+                settings_row(title, *detail, toggle(smart_editing_positions[index]))
+                    .id(("smart-editing-setting", index))
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        let mut flags = smart_editing_flags(this.settings.smart_editing);
+                        flags[index] = !flags[index];
+                        if this.update_settings(cx, |settings| {
+                            settings.smart_editing =
+                                smart_editing_with_flags(settings.smart_editing, flags)
+                        }) {
+                            this.smart_editing_toggles[index].set_enabled(flags[index]);
+                        }
+                    }))
+            })
+            .collect::<Vec<_>>();
+        let bangla_digits_position = self.bangla_digits_spring.render_position(window);
+        let bangla_digits = sliding_segmented_control(bangla_digits_position, &[64.0; 3])
+            .id("bangla-digits")
+            .children(
+                BanglaDigits::ALL
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, choice)| {
+                        sliding_segmented_item(
+                            64.0,
+                            self.settings.smart_editing.bangla_digits == choice,
+                        )
+                        .id(("bangla-digits", index))
+                        .child(choice.label())
                         .on_click(cx.listener(move |this, _, _, cx| {
-                            let mut flags = smart_editing_flags(this.settings.smart_editing);
-                            flags[index] = !flags[index];
+                            if this.settings.smart_editing.bangla_digits == choice {
+                                return;
+                            }
                             if this.update_settings(cx, |settings| {
-                                settings.smart_editing = smart_editing_from_flags(flags)
+                                settings.smart_editing.bangla_digits = choice
                             }) {
-                                this.smart_editing_toggles[index].set_enabled(flags[index]);
+                                this.bangla_digits_spring.set_target(index as f32);
                             }
                         }))
-                });
+                    }),
+            );
+        let bangla_digits_row = settings_row(
+            "Numbers in Bangla",
+            "How digits are written in Bangla sentences",
+            bangla_digits,
+        )
+        .id("bangla-digits-setting")
+        .border_b_0();
         let microphone_mode = sliding_segmented_control(release_microphone_position, &[114.0; 2])
             .id("microphone-mode")
             .children(
@@ -4385,7 +4464,11 @@ impl AppWindow {
                                     .children(microphone_confirmation)
                             )
                             .child(settings_section_label("SMART EDITING"))
-                            .child(settings_panel().children(smart_editing_rows)),
+                            .child(
+                                settings_panel()
+                                    .children(smart_editing_rows)
+                                    .child(bangla_digits_row),
+                            ),
         )
     }
 
@@ -8973,6 +9056,7 @@ impl Render for AppWindow {
             Pane::HudLab => self.render_hud_lab(cx),
             Pane::Meetings => self.render_meetings(window, cx),
             Pane::Commands => self.render_commands(window, cx),
+            Pane::Dictionary => self.render_dictionary(window, cx),
             Pane::Activity => self.render_activity(cx),
             Pane::History => self.render_history(cx),
             Pane::Modes => self.render_modes(window, cx),
@@ -9055,6 +9139,10 @@ impl Render for AppWindow {
             .on_action(cx.listener(|this, _: &ToggleMeetingDetection, _, cx| {
                 let enabled = !this.settings.notetaker.detect_meetings;
                 this.set_meeting_detection(enabled, cx);
+            }))
+            .on_action(cx.listener(|this, _: &ShowDictionary, window, cx| {
+                this.select_pane(Pane::Dictionary, cx);
+                window.activate_window();
             }))
             .on_action(cx.listener(|this, _: &ShowNotetaker, window, cx| {
                 this.select_pane(Pane::Meetings, cx);
@@ -9369,7 +9457,7 @@ fn recording_audio_index(behavior: RecordingAudioBehavior) -> usize {
     }
 }
 
-const SMART_EDITING_ROWS: [(&str, &str); 5] = [
+const SMART_EDITING_ROWS: [(&str, &str); 6] = [
     ("Remove filler words", "Drop um, uh, and erm from dictation"),
     (
         "Scratch that",
@@ -9387,26 +9475,43 @@ const SMART_EDITING_ROWS: [(&str, &str); 5] = [
         "End with a full stop",
         "Add a full stop when you stop mid-sentence",
     ),
+    (
+        "Bangla full stop",
+        "Write \u{0964} instead of a full stop after Bangla",
+    ),
 ];
 
-fn smart_editing_flags(options: SmartEditing) -> [bool; 5] {
+fn smart_editing_flags(options: SmartEditing) -> [bool; SMART_EDITING_ROWS.len()] {
     [
         options.remove_fillers,
         options.scratch_that,
         options.spoken_line_breaks,
         options.numbered_lists,
         options.end_with_period,
+        options.bangla_punctuation,
     ]
 }
 
-fn smart_editing_from_flags(flags: [bool; 5]) -> SmartEditing {
+fn smart_editing_with_flags(
+    options: SmartEditing,
+    flags: [bool; SMART_EDITING_ROWS.len()],
+) -> SmartEditing {
     SmartEditing {
         remove_fillers: flags[0],
         scratch_that: flags[1],
         spoken_line_breaks: flags[2],
         numbered_lists: flags[3],
         end_with_period: flags[4],
+        bangla_punctuation: flags[5],
+        ..options
     }
+}
+
+fn bangla_digits_index(choice: BanglaDigits) -> usize {
+    BanglaDigits::ALL
+        .iter()
+        .position(|candidate| *candidate == choice)
+        .unwrap_or(0)
 }
 
 /// A row of usage tiles above the History list, computed from retained entries.
@@ -9578,7 +9683,7 @@ fn format_count(count: usize) -> String {
 
 /// Hello's own release number. The engine underneath keeps its upstream
 /// version (CARGO_PKG_VERSION) for local API and SDK compatibility.
-pub(crate) const APP_VERSION: &str = "1.0.4";
+pub(crate) const APP_VERSION: &str = "1.0.5";
 
 fn theme_index(theme: ColorTheme) -> usize {
     ColorTheme::ALL
@@ -10950,6 +11055,576 @@ fn is_function_key(label: &str) -> bool {
         .is_some_and(|number| (1..=20).contains(&number))
 }
 
+impl AppWindow {
+    fn dictionary_editor(cx: &mut Context<Self>) -> DictionaryEditor {
+        let search = cx.new(|cx| TextInput::picker(cx, "Search dictionary", ""));
+        let changed = cx.subscribe(&search, |_, _, _: &TextChanged, cx| cx.notify());
+        let plain = |placeholder: &'static str, cx: &mut Context<Self>| ProcessingInput {
+            entity: cx.new(|cx| TextInput::new(cx, placeholder, "")),
+            _subscriptions: Vec::new(),
+        };
+        DictionaryEditor {
+            dictionary: Dictionary::default(),
+            error: None,
+            search: ProcessingInput {
+                entity: search,
+                _subscriptions: vec![changed],
+            },
+            phrase: plain("Word or phrase, e.g. Dhruba, Optify, MinuteCampus", cx),
+            heard_as: plain("What Hello writes instead, e.g. Druba, Drooba", cx),
+            body: ProcessingInput {
+                entity: cx.new(|cx| {
+                    TextInput::multiline(cx, "The text to paste when you say the phrase", "")
+                }),
+                _subscriptions: Vec::new(),
+            },
+            snippet: false,
+            snippet_toggle: ToggleSpring::new(false),
+            form_open: false,
+            editing: None,
+            form_error: None,
+        }
+    }
+
+    /// Reads the file again when the page opens, so edits made elsewhere show up.
+    fn reload_dictionary(&mut self, cx: &mut Context<Self>) {
+        self.close_dictionary_form(cx);
+        if self.preview {
+            self.dictionary.dictionary = sample_dictionary();
+            return;
+        }
+        match Dictionary::load() {
+            Ok(dictionary) => {
+                self.dictionary.dictionary = dictionary;
+                self.dictionary.error = None;
+            }
+            Err(error) => self.dictionary.error = Some(error.to_string()),
+        }
+    }
+
+    fn persist_dictionary(&mut self, cx: &mut Context<Self>) {
+        if !self.preview
+            && let Err(error) = self.dictionary.dictionary.save()
+        {
+            self.dictionary.error = Some(error.to_string());
+        }
+        cx.notify();
+    }
+
+    fn set_dictionary_input(input: &ProcessingInput, text: &str, cx: &mut Context<Self>) {
+        input
+            .entity
+            .update(cx, |input, cx| input.set_text(text, cx));
+    }
+
+    fn open_dictionary_form(
+        &mut self,
+        editing: Option<usize>,
+        phrase: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let entry = editing
+            .and_then(|index| self.dictionary.dictionary.entries.get(index).cloned())
+            .unwrap_or_else(|| DictionaryEntry::new(phrase));
+        Self::set_dictionary_input(&self.dictionary.phrase, &entry.phrase, cx);
+        Self::set_dictionary_input(&self.dictionary.heard_as, &entry.heard_as, cx);
+        Self::set_dictionary_input(&self.dictionary.body, &entry.body, cx);
+        self.dictionary.snippet = entry.snippet;
+        self.dictionary.snippet_toggle.set_enabled(entry.snippet);
+        self.dictionary.editing = editing;
+        self.dictionary.form_open = true;
+        self.dictionary.form_error = None;
+        self.dictionary.phrase.entity.focus_handle(cx).focus(window);
+        cx.notify();
+    }
+
+    fn close_dictionary_form(&mut self, cx: &mut Context<Self>) {
+        self.dictionary.form_open = false;
+        self.dictionary.editing = None;
+        self.dictionary.form_error = None;
+        cx.notify();
+    }
+
+    fn save_dictionary_entry(&mut self, cx: &mut Context<Self>) {
+        let phrase = self
+            .dictionary
+            .phrase
+            .entity
+            .read(cx)
+            .text()
+            .trim()
+            .to_string();
+        let heard_as = self
+            .dictionary
+            .heard_as
+            .entity
+            .read(cx)
+            .text()
+            .trim()
+            .to_string();
+        let body = self
+            .dictionary
+            .body
+            .entity
+            .read(cx)
+            .text()
+            .trim()
+            .to_string();
+        let snippet = self.dictionary.snippet;
+        if phrase.is_empty() {
+            self.dictionary.form_error = Some("Type the word or phrase first.");
+            cx.notify();
+            return;
+        }
+        if snippet && body.is_empty() {
+            self.dictionary.form_error = Some("A snippet needs the text to paste.");
+            cx.notify();
+            return;
+        }
+        let duplicate =
+            self.dictionary
+                .dictionary
+                .entries
+                .iter()
+                .enumerate()
+                .any(|(index, entry)| {
+                    Some(index) != self.dictionary.editing
+                        && entry.phrase.trim().eq_ignore_ascii_case(&phrase)
+                });
+        if duplicate {
+            self.dictionary.form_error = Some("That word is already in the dictionary.");
+            cx.notify();
+            return;
+        }
+        match self.dictionary.editing {
+            Some(index) if index < self.dictionary.dictionary.entries.len() => {
+                let entry = &mut self.dictionary.dictionary.entries[index];
+                entry.phrase = phrase;
+                entry.heard_as = heard_as;
+                entry.snippet = snippet;
+                entry.body = if snippet { body } else { String::new() };
+            }
+            _ => {
+                let mut entry = DictionaryEntry::new(&phrase);
+                entry.heard_as = heard_as;
+                entry.snippet = snippet;
+                entry.body = if snippet { body } else { String::new() };
+                self.dictionary.dictionary.entries.push(entry);
+            }
+        }
+        self.close_dictionary_form(cx);
+        self.persist_dictionary(cx);
+    }
+
+    fn remove_dictionary_entry(&mut self, index: usize, cx: &mut Context<Self>) {
+        if index >= self.dictionary.dictionary.entries.len() {
+            return;
+        }
+        self.dictionary.dictionary.entries.remove(index);
+        if self.dictionary.editing == Some(index) {
+            self.close_dictionary_form(cx);
+        } else if let Some(editing) = self.dictionary.editing
+            && editing > index
+        {
+            self.dictionary.editing = Some(editing - 1);
+        }
+        self.persist_dictionary(cx);
+    }
+
+    fn toggle_dictionary_star(&mut self, index: usize, cx: &mut Context<Self>) {
+        if let Some(entry) = self.dictionary.dictionary.entries.get_mut(index) {
+            entry.starred = !entry.starred;
+            self.persist_dictionary(cx);
+        }
+    }
+
+    /// "Add to Dictionary" on a History entry: opens the form with the text filled in.
+    fn add_history_entry_to_dictionary(
+        &mut self,
+        id: u64,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(text) = self
+            .history_entries
+            .iter()
+            .find(|entry| entry.id == id)
+            .map(|entry| entry.final_text.clone())
+        else {
+            return;
+        };
+        let phrase = text
+            .trim()
+            .trim_end_matches(['.', '!', '?', '\u{0964}'])
+            .trim()
+            .to_string();
+        self.select_pane(Pane::Dictionary, cx);
+        self.open_dictionary_form(None, &phrase, window, cx);
+    }
+
+    fn render_dictionary_form(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let editing = self.dictionary.editing.is_some();
+        let snippet = self.dictionary.snippet;
+        let snippet_position = self.dictionary.snippet_toggle.render_position(window);
+        let field = |label: &'static str, hint: &'static str, input: Entity<TextInput>| {
+            div()
+                .w_full()
+                .px_4()
+                .py_3()
+                .border_t_1()
+                .border_color(tone(LINE))
+                .flex()
+                .flex_col()
+                .gap_2()
+                .child(
+                    div()
+                        .text_size(px(11.5))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(rgb(MUTED))
+                        .child(label),
+                )
+                .child(input)
+                .when(!hint.is_empty(), |field| {
+                    field.child(div().text_size(px(10.5)).text_color(rgb(FAINT)).child(hint))
+                })
+        };
+        let save = compact_button(if editing {
+            "Save changes"
+        } else {
+            "Add to dictionary"
+        })
+        .id("dictionary-save")
+        .bg(rgb(ACCENT))
+        .border_color(rgb(ACCENT))
+        .text_color(rgb(ON_ACCENT))
+        .on_click(cx.listener(|this, _, _, cx| this.save_dictionary_entry(cx)));
+        let cancel = compact_button("Cancel")
+            .id("dictionary-cancel")
+            .on_click(cx.listener(|this, _, _, cx| this.close_dictionary_form(cx)));
+        compact_panel()
+            .child(compact_panel_header(
+                panel_title(
+                    Glyph::Pencil,
+                    TINT_TEAL,
+                    if editing { "Edit entry" } else { "New entry" },
+                    if snippet {
+                        "Saying the phrase pastes the snippet text."
+                    } else {
+                        "Hello listens for this and writes it exactly like this."
+                    },
+                ),
+                None,
+            ))
+            .child(field(
+                if snippet {
+                    "Phrase to say"
+                } else {
+                    "Word or phrase"
+                },
+                "",
+                self.dictionary.phrase.entity.clone(),
+            ))
+            .when(!snippet, |panel| {
+                panel.child(field(
+                    "Often heard as",
+                    "Optional. Separate several with commas.",
+                    self.dictionary.heard_as.entity.clone(),
+                ))
+            })
+            .child(
+                settings_row(
+                    "Snippet",
+                    "Paste a saved text, like an address or sign-off, when you say the phrase.",
+                    toggle(snippet_position),
+                )
+                .border_t_1()
+                .border_color(tone(LINE))
+                .id("dictionary-snippet")
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.dictionary.snippet = !this.dictionary.snippet;
+                    this.dictionary
+                        .snippet_toggle
+                        .set_enabled(this.dictionary.snippet);
+                    this.dictionary.form_error = None;
+                    cx.notify();
+                })),
+            )
+            .when(snippet, |panel| {
+                panel.child(field(
+                    "Snippet text",
+                    "",
+                    self.dictionary.body.entity.clone(),
+                ))
+            })
+            .child(
+                div()
+                    .w_full()
+                    .px_4()
+                    .py_3()
+                    .border_t_1()
+                    .border_color(tone(LINE))
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .gap_3()
+                    .child(
+                        div()
+                            .text_size(px(11.5))
+                            .text_color(rgb(NEGATIVE))
+                            .child(self.dictionary.form_error.unwrap_or("")),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(cancel)
+                            .child(save),
+                    ),
+            )
+            .into_any_element()
+    }
+
+    fn render_dictionary(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
+        let query = self
+            .dictionary
+            .search
+            .entity
+            .read(cx)
+            .text()
+            .trim()
+            .to_lowercase();
+        let search = div()
+            .w(px(220.0))
+            .child(self.dictionary.search.entity.clone());
+        let add = glyph_button(Glyph::Plus, "Add word")
+            .id("dictionary-add")
+            .on_click(
+                cx.listener(|this, _, window, cx| this.open_dictionary_form(None, "", window, cx)),
+            );
+        let header_action = div()
+            .flex()
+            .items_center()
+            .gap_2()
+            .child(search)
+            .child(add)
+            .into_any_element();
+        let form = self
+            .dictionary
+            .form_open
+            .then(|| self.render_dictionary_form(window, cx));
+        let total = self.dictionary.dictionary.entries.len();
+        let entries: Vec<(usize, DictionaryEntry)> = self
+            .dictionary
+            .dictionary
+            .sorted()
+            .into_iter()
+            .filter(|(_, entry)| {
+                query.is_empty()
+                    || entry.phrase.to_lowercase().contains(&query)
+                    || entry.heard_as.to_lowercase().contains(&query)
+                    || entry.body.to_lowercase().contains(&query)
+            })
+            .map(|(index, entry)| (index, entry.clone()))
+            .collect();
+        let shown = entries.len();
+        let editing = self.dictionary.editing;
+        let rows = entries
+            .into_iter()
+            .enumerate()
+            .map(|(position, (index, entry))| {
+                let detail = if entry.snippet {
+                    format!("Pastes: {}", entry.body.replace('\n', " \u{23ce} "))
+                } else if entry.heard_as.trim().is_empty() {
+                    "Spelled and capitalised as written".to_string()
+                } else {
+                    format!("Often heard as {}", entry.heard_as_list().join(", "))
+                };
+                let star_color = if entry.starred { TINT_ORANGE } else { FAINT };
+                div()
+                    .id(("dictionary-entry", index))
+                    .w_full()
+                    .px_3()
+                    .py(px(9.0))
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .when(position + 1 < shown, |row| {
+                        row.border_b_1().border_color(tone(LINE))
+                    })
+                    .when(editing == Some(index), |row| row.bg(tone(SURFACE_SELECTED)))
+                    .child(
+                        compact_button(glyph(Glyph::Star, 14.0, star_color))
+                            .id(("dictionary-star", index))
+                            .size(px(30.0))
+                            .px_0()
+                            .justify_center()
+                            .flex_none()
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.toggle_dictionary_star(index, cx)
+                            })),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w(px(0.0))
+                            .flex()
+                            .flex_col()
+                            .gap(px(2.0))
+                            .child(
+                                div()
+                                    .text_size(px(13.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(rgb(TEXT))
+                                    .truncate()
+                                    .child(entry.phrase.clone()),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(11.0))
+                                    .text_color(rgb(MUTED))
+                                    .truncate()
+                                    .child(detail),
+                            ),
+                    )
+                    .when(entry.snippet, |row| {
+                        row.child(
+                            chip("Snippet")
+                                .text_size(px(10.5))
+                                .text_color(rgb(TINT_TEAL)),
+                        )
+                    })
+                    .child(
+                        compact_button(glyph(Glyph::Pencil, 13.0, MUTED))
+                            .id(("dictionary-edit", index))
+                            .size(px(30.0))
+                            .px_0()
+                            .justify_center()
+                            .flex_none()
+                            .on_click(cx.listener(move |this, _, window, cx| {
+                                this.open_dictionary_form(Some(index), "", window, cx)
+                            })),
+                    )
+                    .child(
+                        compact_button("\u{00d7}")
+                            .id(("dictionary-remove", index))
+                            .size(px(30.0))
+                            .px_0()
+                            .justify_center()
+                            .flex_none()
+                            .text_size(px(14.0))
+                            .text_color(rgb(MUTED))
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.remove_dictionary_entry(index, cx)
+                            })),
+                    )
+                    .into_any_element()
+            })
+            .collect::<Vec<_>>();
+        let list_subtitle: &'static str = if total == 0 {
+            "Add the names and terms Hello gets wrong."
+        } else {
+            "Starred entries come first in the recognition hints."
+        };
+        let list = compact_panel()
+            .child(compact_panel_header(
+                panel_title(Glyph::Book, TINT_INDIGO, "Words and snippets", list_subtitle),
+                Some(
+                    div()
+                        .text_size(px(11.5))
+                        .text_color(rgb(FAINT))
+                        .child(if shown == total {
+                            format!("{total}")
+                        } else {
+                            format!("{shown} of {total}")
+                        })
+                        .into_any_element(),
+                ),
+            ))
+            .when(rows.is_empty(), |panel| {
+                panel.child(
+                    div()
+                        .px_4()
+                        .py_3()
+                        .border_t_1()
+                        .border_color(tone(LINE))
+                        .text_size(px(11.5))
+                        .text_color(rgb(FAINT))
+                        .child(if total == 0 {
+                            "No entries yet. Press Add word, or use Add to Dictionary on a dictation in History."
+                        } else {
+                            "Nothing matches your search."
+                        }),
+                )
+            })
+            .when(!rows.is_empty(), |panel| {
+                panel.child(div().border_t_1().border_color(tone(LINE)).children(rows))
+            });
+        let error = self.dictionary.error.clone();
+        div()
+            .size_full()
+            .flex()
+            .flex_col()
+            .child(pane_header_with_subtitle(
+                "Dictionary",
+                "Names, terms and snippets Hello should know. Kept on this Mac.",
+                Some(header_action),
+            ))
+            .child(
+                div()
+                    .id("dictionary-scroll")
+                    .flex_1()
+                    .overflow_y_scroll()
+                    .px_8()
+                    .pt_1()
+                    .pb_7()
+                    .child(
+                        div().w_full().flex().justify_center().child(
+                            div()
+                                .w_full()
+                                .max_w(px(PANE_CONTENT_WIDTH))
+                                .min_w_0()
+                                .flex()
+                                .flex_col()
+                                .gap_4()
+                                .children(form)
+                                .when_some(error, |content, error| {
+                                    content.child(compact_panel().child(error_message(
+                                        "The dictionary could not be saved.",
+                                        error,
+                                    )))
+                                })
+                                .child(list),
+                        ),
+                    ),
+            )
+            .into_any_element()
+    }
+}
+
+/// Entries for `hello preview dictionary`.
+fn sample_dictionary() -> Dictionary {
+    let mut dhruba = DictionaryEntry::new("Dhruba");
+    dhruba.heard_as = "Druba, Drooba".into();
+    dhruba.starred = true;
+    let mut sign_off = DictionaryEntry::new("my sign-off");
+    sign_off.snippet = true;
+    sign_off.body = "Best regards,\nDhruba Datta".into();
+    Dictionary {
+        entries: vec![
+            DictionaryEntry::new("MinuteCampus"),
+            dhruba,
+            DictionaryEntry::new("Optify"),
+            sign_off,
+        ],
+    }
+}
+
 fn detail_placeholder(message: &'static str) -> AnyElement {
     div()
         .flex_1()
@@ -12047,6 +12722,7 @@ mod tests {
                 Pane::Sounds,
                 Pane::Modes,
                 Pane::Commands,
+                Pane::Dictionary,
                 Pane::Meetings,
                 Pane::History,
             ]
@@ -12065,6 +12741,7 @@ mod tests {
                 Pane::Sounds,
                 Pane::Modes,
                 Pane::Commands,
+                Pane::Dictionary,
                 Pane::Meetings,
                 Pane::History,
                 Pane::HudLab,

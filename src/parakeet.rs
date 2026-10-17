@@ -561,14 +561,18 @@ fn process_job_text(
     }
     // Local smart editing applies to dictation output only, never to the
     // transcription service, and runs before mode corrections.
-    let text = if matches!(
+    let to_caret = matches!(
         job.target,
         TranscriptionTarget::Paste | TranscriptionTarget::Send
-    ) {
+    );
+    let text = if to_caret {
         crate::smart_editing::apply(&job.text, crate::app_settings::smart_editing())
     } else {
         job.text.clone()
     };
+    // The personal dictionary fixes names for every model; snippets only expand
+    // in text that goes to the caret.
+    let text = crate::dictionary::apply(&text, to_caret);
     profiles.process(&text, &job.context)
 }
 
@@ -1570,8 +1574,7 @@ impl Parakeet {
                     ));
                 }
                 family = Some(RunExtension::Whisper(WhisperRunOptions {
-                    initial_prompt: (!selection.recognition_hints.trim().is_empty())
-                        .then(|| selection.recognition_hints.trim().to_string()),
+                    initial_prompt: crate::dictionary::hints_with(&selection.recognition_hints),
                     ..Default::default()
                 }));
             }
@@ -1674,9 +1677,22 @@ impl Parakeet {
     }
 
     pub fn transcribe_segments(&mut self, samples: &[f32]) -> Result<Transcript> {
+        self.refresh_recognition_hints();
         self.session
             .run(samples, &self.options)
             .wrap_err("transcription failed")
+    }
+
+    /// The dictionary can change between dictations, so the Whisper prompt is rebuilt
+    /// before every run instead of at activation.
+    fn refresh_recognition_hints(&mut self) {
+        if let Some(RunExtension::Whisper(options)) = &mut self.options.family {
+            let settings_hints = self
+                .selection
+                .as_ref()
+                .map_or("", |selection| selection.recognition_hints.as_str());
+            options.initial_prompt = crate::dictionary::hints_with(settings_hints);
+        }
     }
 }
 

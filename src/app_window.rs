@@ -11107,28 +11107,32 @@ impl AppWindow {
                 this.typing_learn_toggle.set_enabled(learn);
             }
         }));
-        let value = |text: String| {
-            div()
-                .text_size(px(13.0))
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(rgb(TEXT))
-                .child(text)
-        };
-        let status: String = if !enabled {
-            "Off. Turn on Suggest while typing and Hello starts learning.".into()
+        let (status_title, status_body): (&'static str, &'static str) = if !enabled {
+            (
+                "Off",
+                "Turn on Suggest while typing and Hello starts learning from what you write.",
+            )
         } else if stats.words == 0 {
-            "Learning. Suggestions begin once Hello has seen how you write.".into()
+            (
+                "Learning",
+                "Nothing to suggest yet. Hello stays quiet until it has seen how you write.",
+            )
         } else if stats.words < 300 {
-            "Still learning. Suggestions get more frequent as Hello sees more of your writing."
-                .into()
+            (
+                "Still learning",
+                "Suggestions are rare at first and get more frequent as Hello sees more of your writing.",
+            )
         } else {
-            "Hello suggests words it has seen you use often.".into()
+            (
+                "Ready",
+                "Hello suggests words and phrases it has seen you use often.",
+            )
         };
         let last_learned = if stats.last_learned_ms == 0 {
-            "\u{2014}".to_string()
+            "Not yet".to_string()
         } else {
             format!(
-                "{} at {}",
+                "{}, {}",
                 history_day_label(stats.last_learned_ms),
                 clock_time(stats.last_learned_ms)
             )
@@ -11142,6 +11146,7 @@ impl AppWindow {
             },
         )
         .id("typing-forget")
+        .flex_none()
         .when(armed, |button| {
             button
                 .border_color(rgb(DANGER_BORDER))
@@ -11166,37 +11171,41 @@ impl AppWindow {
                 .child(settings_section_label("HELLO TYPE"))
                 .child(settings_panel().child(suggest_row).child(learn_row))
                 .child(settings_section_label("WHAT HELLO HAS LEARNED"))
+                .child(render_profile_tiles(&[
+                    (
+                        Glyph::Text,
+                        TINT_BLUE,
+                        "Words it knows",
+                        format_count(stats.words),
+                    ),
+                    (
+                        Glyph::Layers,
+                        TINT_TEAL,
+                        "Sentences learned",
+                        format_count(stats.sentences as usize),
+                    ),
+                    (
+                        Glyph::Keyboard,
+                        TINT_GREEN,
+                        "Accepted with Tab",
+                        format_count(stats.accepted as usize),
+                    ),
+                    (Glyph::Clock, TINT_ORANGE, "Last learned", last_learned),
+                ]))
+                .child(div().h(px(12.0)))
                 .child(
-                    settings_panel()
-                        .child(
-                            settings_row("Status", status, div())
-                                .id("typing-status"),
-                        )
-                        .child(settings_row(
-                            "Words",
-                            "Different words seen in your typing and dictations",
-                            value(format_count(stats.words)),
-                        ))
-                        .child(settings_row(
-                            "Sentences",
-                            "Sentences learned so far",
-                            value(format_count(stats.sentences as usize)),
-                        ))
-                        .child(settings_row(
-                            "Suggestions accepted",
-                            "Times you pressed Tab on a suggestion",
-                            value(format_count(stats.accepted as usize)),
-                        ))
-                        .child(
-                            settings_row("Last learned", "", value(last_learned)).border_b_0(),
-                        ),
+                    settings_panel().child(
+                        settings_row(status_title, status_body, div())
+                            .id("typing-status")
+                            .border_b_0(),
+                    ),
                 )
                 .child(settings_section_label("PRIVACY"))
                 .child(
                     settings_panel().child(
                         settings_row(
                             "Everything stays on this Mac",
-                            "What Hello learns lives in typing-model.json in its data folder and never leaves your Mac. Hello never reads password fields, pauses while another app holds secure input, and skips its own window. Forget everything moves the file to the Trash.",
+                            "What Hello learns is kept in its data folder and never leaves your Mac. Password fields and secure keyboard entry are never read. Forget everything moves the learned words to the Trash.",
                             forget,
                         )
                         .border_b_0(),

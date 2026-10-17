@@ -4,9 +4,9 @@ use std::sync::mpsc::{Receiver, SyncSender, sync_channel};
 use color_eyre::eyre::{Result, eyre};
 use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, NSObjectProtocol, Sel};
-use objc2::{DefinedClass, MainThreadOnly, msg_send, sel};
+use objc2::{AnyThread, DefinedClass, MainThreadOnly, msg_send, sel};
 use objc2_app_kit::{NSImage, NSMenu, NSMenuItem, NSStatusBar, NSStatusItem};
-use objc2_foundation::{MainThreadMarker, NSObject, NSString};
+use objc2_foundation::{MainThreadMarker, NSData, NSObject, NSSize, NSString};
 
 use crate::app_settings::AppSettings;
 use crate::transcription_models::{MODELS, ModelDefinition, TranscriptionModelId, language_name};
@@ -246,12 +246,15 @@ pub fn install() -> Result<Receiver<StatusItemAction>> {
     let button = item
         .button(mtm)
         .ok_or_else(|| eyre!("status item button is unavailable"))?;
-    let symbol = NSImage::imageWithSystemSymbolName_accessibilityDescription(
-        &NSString::from_str("waveform"),
-        Some(&NSString::from_str("Hello")),
+    // Hello's own mark (branding/make-icon.py), drawn at 2x and tinted by macOS.
+    let symbol = NSImage::initWithData(
+        NSImage::alloc(),
+        &NSData::with_bytes(include_bytes!("../branding/StatusIcon.png")),
     )
-    .ok_or_else(|| eyre!("Hello status symbol is unavailable"))?;
+    .ok_or_else(|| eyre!("Hello status icon is unavailable"))?;
+    symbol.setSize(NSSize::new(19.0, 16.0));
     symbol.setTemplate(true);
+    symbol.setAccessibilityDescription(Some(&NSString::from_str("Hello")));
     button.setImage(Some(&symbol));
     item.setMenu(Some(&menu));
 

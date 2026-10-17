@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Hello</title>
+    <link>https://hello.minutecampus.com/appcast.xml</link>
+    <language>en</language>
+    <item>
+      <title>Hello 1.0.3</title>
+      <pubDate>Fri, 16 Oct 2026 22:40:36 +0000</pubDate>
+      <sparkle:version>4</sparkle:version>
+      <sparkle:shortVersionString>1.0.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[<h2>Hello 1.0.3</h2><ul><li>Light, Dark and Auto themes: choose one in Appearance. Auto follows your Mac.</li>
+<li>After an update installs, Hello reopens its window so you can see it came back.</li></ul>]]></description>
+      <enclosure url="https://github.com/dhruba-datta/hello/releases/download/v1.0.3/Hello.dmg"
+        length="31141656" type="application/octet-stream"
+        sparkle:edSignature="GNHECA4uuPysHZJ2/K82mO89L62Y/hR1B5DHQrmM9cmt3KvS9+h2taOfYDwk0IQb0s+P1ieoODm32jp5/EpPCw==" />
+    </item>
+  </channel>
+</rss>

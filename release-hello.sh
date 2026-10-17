@@ -5,14 +5,14 @@
 #   SPARKLE_KEY    Ed25519 private key (PEM) that signs updates (required)
 #   SIGN_IDENTITY  code-signing identity, passed on to package-hello.sh
 #   RELEASE_NOTES  optional text file, one change per line, shown in the update window
-#   RELEASES_REPO  GitHub repository that hosts the .dmg (default dhruba-datta/hello-releases)
+#   RELEASES_REPO  GitHub repository that hosts the .dmg (default dhruba-datta/hello)
 #   OPENSSL        OpenSSL 3 binary (default: Homebrew's openssl@3, then openssl)
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 out_dir=${1:?usage: release-hello.sh <output-dir>}
 key=${SPARKLE_KEY:?set SPARKLE_KEY to the update signing key}
-repo=${RELEASES_REPO:-dhruba-datta/hello-releases}
+repo=${RELEASES_REPO:-dhruba-datta/hello}
 openssl=${OPENSSL:-}
 if [ -z "$openssl" ]; then
   if [ -x /opt/homebrew/opt/openssl@3/bin/openssl ]; then

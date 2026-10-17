@@ -23,7 +23,7 @@ use objc2_app_kit::{
 use objc2_foundation::{NSPoint, NSRect, NSSize};
 use objc2_quartz_core::CALayer;
 
-use crate::app_settings::{IndicatorPosition, IndicatorStyle};
+use crate::app_settings::{IndicatorAlignment, IndicatorPosition, IndicatorStyle};
 
 const WINDOW_WIDTH: f32 = 112.0;
 const WINDOW_HEIGHT: f32 = 64.0;
@@ -41,6 +41,10 @@ const LINE_WIDTH: f32 = 68.0;
 const LINE_HEIGHT: f32 = 24.0;
 const DOTS_WIDTH: f32 = 52.0;
 const DOTS_HEIGHT: f32 = 22.0;
+const DOT_SIZE: f32 = 18.0;
+// Gap between a HUD aligned left or right and the screen edge; it leaves room for the
+// queue dots drawn beside the pill.
+const SIDE_GAP: f64 = 24.0;
 const ENTRANCE_ANGULAR_FREQUENCY: f32 = 24.0;
 const EXIT_ANGULAR_FREQUENCY: f32 = 24.0;
 const GEOMETRY_ANGULAR_FREQUENCY: f32 = 24.0;
@@ -291,11 +295,13 @@ impl MetalIndicator {
             return;
         };
         let visible = screen.visibleFrame();
-        let (style, position) = self.renderer.placement();
+        let (style, position, alignment) = self.renderer.placement();
         let capsule_margin = f64::from((WINDOW_HEIGHT - capsule_height(style)) / 2.0);
         let top = match (position, style) {
-            // Classic tucks into the menu bar beside the notch, as in the official app.
-            (IndicatorPosition::Top, IndicatorStyle::Classic) => {
+            // Centered at the top, Classic tucks into the menu bar beside the notch.
+            (IndicatorPosition::Top, IndicatorStyle::Classic)
+                if alignment == IndicatorAlignment::Center =>
+            {
                 visible.origin.y + visible.size.height + capsule_margin - TOP_OFFSET
             }
             (IndicatorPosition::Top, _) => {
@@ -306,10 +312,19 @@ impl MetalIndicator {
                 visible.origin.y + BOTTOM_OFFSET - capsule_margin + f64::from(WINDOW_HEIGHT)
             }
         };
-        let top_left = NSPoint::new(
-            visible.origin.x + (visible.size.width - f64::from(WINDOW_WIDTH)) / 2.0,
-            top,
-        );
+        // The window is wider than the pill; keep the pill itself SIDE_GAP from the edge.
+        let side_margin = f64::from((WINDOW_WIDTH - recording_width(style)) / 2.0);
+        let left = match alignment {
+            IndicatorAlignment::Left => visible.origin.x + SIDE_GAP - side_margin,
+            IndicatorAlignment::Center => {
+                visible.origin.x + (visible.size.width - f64::from(WINDOW_WIDTH)) / 2.0
+            }
+            IndicatorAlignment::Right => {
+                visible.origin.x + visible.size.width - SIDE_GAP + side_margin
+                    - f64::from(WINDOW_WIDTH)
+            }
+        };
+        let top_left = NSPoint::new(left, top);
         let frame = self.window.frame();
         if (frame.origin.x - top_left.x).abs() > 0.5
             || (frame.origin.y + frame.size.height - top_left.y).abs() > 0.5
@@ -373,9 +388,9 @@ impl SharedRenderer {
         self.renderer.lock().unwrap().set_scale(scale);
     }
 
-    fn placement(&self) -> (IndicatorStyle, IndicatorPosition) {
+    fn placement(&self) -> (IndicatorStyle, IndicatorPosition, IndicatorAlignment) {
         let renderer = self.renderer.lock().unwrap();
-        (renderer.style, renderer.position)
+        (renderer.style, renderer.position, renderer.alignment)
     }
 
     fn draw(&self) {
@@ -431,24 +446,33 @@ impl Phase {
     }
 }
 
-fn capsule_height(style: IndicatorStyle) -> f32 {
+/// Width and height of each style's pill (equal for the round styles), in points.
+/// The Appearance previews use the same sizes.
+pub(crate) const fn hud_size(style: IndicatorStyle) -> (f32, f32) {
     match style {
-        IndicatorStyle::Classic => CAPSULE_HEIGHT,
-        IndicatorStyle::Wave => WAVE_HEIGHT,
-        IndicatorStyle::Orb => ORB_SIZE,
-        IndicatorStyle::Line => LINE_HEIGHT,
-        IndicatorStyle::Dots => DOTS_HEIGHT,
+        IndicatorStyle::Classic => (CAPSULE_WIDTH, CAPSULE_HEIGHT),
+        IndicatorStyle::Wave | IndicatorStyle::Equalizer | IndicatorStyle::Spectrum => {
+            (WAVE_WIDTH, WAVE_HEIGHT)
+        }
+        IndicatorStyle::Line
+        | IndicatorStyle::Pulse
+        | IndicatorStyle::Twin
+        | IndicatorStyle::Aurora => (LINE_WIDTH, LINE_HEIGHT),
+        IndicatorStyle::Dots => (DOTS_WIDTH, DOTS_HEIGHT),
+        IndicatorStyle::Meter => (60.0, 20.0),
+        IndicatorStyle::Pixels => (64.0, 26.0),
+        IndicatorStyle::Orb | IndicatorStyle::Halo | IndicatorStyle::Comet => (ORB_SIZE, ORB_SIZE),
+        IndicatorStyle::Ripple | IndicatorStyle::Blob => (32.0, 32.0),
+        IndicatorStyle::Dot => (DOT_SIZE, DOT_SIZE),
     }
 }
 
+fn capsule_height(style: IndicatorStyle) -> f32 {
+    hud_size(style).1
+}
+
 fn recording_width(style: IndicatorStyle) -> f32 {
-    match style {
-        IndicatorStyle::Classic => CAPSULE_WIDTH,
-        IndicatorStyle::Wave => WAVE_WIDTH,
-        IndicatorStyle::Orb => ORB_SIZE,
-        IndicatorStyle::Line => LINE_WIDTH,
-        IndicatorStyle::Dots => DOTS_WIDTH,
-    }
+    hud_size(style).0
 }
 
 /// Classic contracts into an orb while transcribing; the modern styles keep
@@ -530,6 +554,7 @@ struct MetalRenderer {
     tuning: HudTuning,
     style: IndicatorStyle,
     position: IndicatorPosition,
+    alignment: IndicatorAlignment,
 }
 
 impl MetalRenderer {
@@ -595,8 +620,9 @@ impl MetalRenderer {
             processing: Spring::new(0.0),
             post_processing: Spring::new(0.0),
             tuning: HudTuning::default(),
-            style: IndicatorStyle::Classic,
-            position: IndicatorPosition::Top,
+            style: IndicatorStyle::Wave,
+            position: IndicatorPosition::Bottom,
+            alignment: IndicatorAlignment::Center,
         })
     }
 
@@ -617,7 +643,8 @@ impl MetalRenderer {
                 self.capturing = true;
                 // Latch the style per capture so a Settings change never morphs a visible HUD.
                 self.style = crate::app_settings::indicator_style();
-                self.position = crate::app_settings::indicator_position(self.style);
+                self.position = crate::app_settings::indicator_position();
+                self.alignment = crate::app_settings::indicator_alignment();
                 self.phase = Phase::Recording;
                 self.phase_started = now;
                 self.render_started = now;
@@ -1042,7 +1069,10 @@ mod tests {
     fn wave_fits_the_window_and_keeps_its_pill_while_transcribing() {
         assert_eq!(recording_width(IndicatorStyle::Classic), CAPSULE_WIDTH);
         assert_eq!(transcribing_width(IndicatorStyle::Classic), CAPSULE_HEIGHT);
-        for style in IndicatorStyle::ALL.into_iter().skip(1) {
+        for style in IndicatorStyle::ALL
+            .into_iter()
+            .filter(|style| *style != IndicatorStyle::Classic)
+        {
             assert_eq!(transcribing_width(style), recording_width(style));
             assert!(capsule_height(style) < WINDOW_HEIGHT);
             // Queued-job dots sit beside the pill and must stay inside the window.

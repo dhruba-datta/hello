@@ -5,8 +5,14 @@
 <h1 align="center">Hello</h1>
 
 <p align="center">
-  <strong>Free, private voice dictation and meeting notes for the Mac.</strong><br />
+  <strong>Free, private, open-source voice dictation and meeting notes for the Mac.</strong><br />
   Everything runs on your Mac. No accounts, no cloud, no API keys.
+</p>
+
+<p align="center">
+  <a href="https://hello.minutecampus.com/download"><strong>Download for Mac</strong></a> ·
+  <a href="https://hello.minutecampus.com">Website</a> ·
+  <a href="https://github.com/dhruba-datta/hello/releases">All releases</a>
 </p>
 
 ---
@@ -18,8 +24,10 @@ understands **Bangla and English, even when you switch languages mid-sentence**.
 Hello is a native macOS app written in Rust. Speech recognition runs on your Mac's GPU with
 Metal, so dictation is fast and works offline.
 
-> **Status:** version 1.0.1. Apple silicon Macs, macOS 15 or newer.
-> Download it from [hello.minutecampus.com](https://hello.minutecampus.com).
+> **Status:** stable releases for Apple silicon Macs on macOS 15 or newer. Everything lives in
+> this one repository: the app's source, every release (`Hello.dmg` under
+> [Releases](https://github.com/dhruba-datta/hello/releases)), the update feed and the
+> [website](website/). Hello is free and released under the MIT License.
 
 ## Contents
 
@@ -29,9 +37,13 @@ Metal, so dictation is fast and works offline.
 - [Getting started](#getting-started)
 - [Using Hello](#using-hello)
 - [Speech models](#speech-models)
+- [How it works](#how-it-works)
 - [Building from source](#building-from-source)
+- [Releasing](#releasing)
+- [Website](#website)
 - [Project layout](#project-layout)
 - [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
 - [License](#license)
 
 ## Features
@@ -48,10 +60,13 @@ Metal, so dictation is fast and works offline.
 
 ### Smart editing
 Cleans up speech as you dictate. Each rule can be turned on or off:
-- Removes filler words ("um", "uh", "you know").
+- Removes filler sounds ("um", "uh", "erm").
 - "**scratch that**" deletes the previous phrase.
 - "**new line**" and "**new paragraph**" insert breaks.
 - "**number one … number two …**" becomes a numbered list.
+- **End with a full stop:** adds "." (or "।" after Bangla) when you stop mid-sentence.
+- **Spacing:** a new dictation gets a space (and a capital after a full stop) when it follows
+  text that is already there.
 
 ### Bangla + English
 - Speak Bangla, English, or both. Hello listens to each 1.5–3 second piece of a recording,
@@ -65,8 +80,8 @@ Cleans up speech as you dictate. Each rule can be turned on or off:
   detection can be tuned to your voice.
 
 ### Notetaker (meetings)
-- Detects calls in Zoom, Google Meet, Microsoft Teams, Webex, FaceTime, Slack huddles and
-  browser tabs. Records and transcribes them live, on your Mac.
+- Notices when a call starts in a meeting app or a browser tab and offers to take notes. Once
+  you start, it records and transcribes the call live, on your Mac. Nothing joins the call.
 - **Where and what:** platform, app, browser profile, signed-in account, meeting code and link.
 - **Calendar (optional):** matches the call to the event on your calendar, with its title,
   organizer and attendees.
@@ -87,8 +102,10 @@ in TypeScript; they run with [Bun](https://bun.sh).
 ### Personal touches
 - **Profile:** words dictated, speaking speed, time saved compared with typing, streaks, a
   14-day chart, and the apps you dictate in most.
-- **Appearance:** five recording indicator styles (Classic, Wave, Orb, Line, Dots), each with
-  a live preview, placed at the top or bottom of the screen. The menu bar and Dock icons can be
+- **Appearance:** Light, Dark or Auto (follows macOS). The recording indicator comes in 17
+  styles (Wave, Orb, Line, Dots, Pulse, Equalizer, Spectrum, Twin, Meter, Pixels, Ripple, Halo,
+  Blob, Comet, Dot, Aurora and Classic), each with a live preview. Place it at the top or bottom
+  of the screen, on the left, in the center or on the right. The menu bar and Dock icons can be
   shown or hidden.
 - **Sounds:** start and stop sounds with several themes and a volume setting.
 
@@ -125,8 +142,9 @@ and drag Hello into Applications (or build it from source, below). Then:
    Bangla model and the language detector.
 
 ### Updates
-Hello checks for updates once a day and installs them with one click, then restarts. Check by
-hand from the menu bar icon → **Check for Updates…**, or Settings → General.
+Hello checks for updates once a day. When one is ready it shows what's new; confirm, and it
+downloads, installs and reopens. Check by hand from the menu bar icon → **Check for Updates…**,
+or General → About. Updates are signed (Ed25519) and verified before they install.
 
 ## Using Hello
 
@@ -135,7 +153,7 @@ hand from the menu bar icon → **Check for Updates…**, or Settings → Genera
 | **Profile** | Your dictation stats, streaks and top apps |
 | **General** | Open at login, menu bar and Dock icons, about |
 | **Dictation** | Speech model, microphone, shortcuts, recording behaviour, smart editing, languages |
-| **Appearance** | Recording indicator style and position |
+| **Appearance** | Light / Dark / Auto, recording indicator position and style |
 | **Sounds** | Sound theme and volume |
 | **Modes** | Per-app replacements and transformations |
 | **Commands** | Voice Commands (optional) |
@@ -161,13 +179,35 @@ Models are downloaded from inside the app and stored in
 The Bangla model is hosted at
 [huggingface.co/dhruba-datta/hello-bangla](https://huggingface.co/dhruba-datta/hello-bangla).
 
+## How it works
+
+1. **Shortcut:** `recognition.rs` watches the keyboard (Input Monitoring) for the dictation
+   shortcut. Holding it starts recording; a double-tap locks it on.
+2. **Audio:** the microphone is captured at 16 kHz while the on-screen indicator
+   (`dictation_indicator.rs`, drawn with Metal) shows your voice level.
+3. **Speech to text:** `parakeet.rs` runs the chosen model on the GPU. With Bangla + English on,
+   the recording is cut into short pieces, each piece's language is detected, and each is sent
+   to the English or the Bangla model; the results are joined back in order.
+4. **Clean up:** `smart_editing.rs` applies the rules you turned on, then Modes apply per-app
+   replacements and transformations.
+5. **Paste:** `paste.rs` reads a little of the text before the cursor (Accessibility) to get
+   spacing right, puts the text on the clipboard, pastes it, and restores your clipboard.
+6. **History:** the result is saved on your Mac (`history.rs`) and counted in your Profile.
+
+The Notetaker (`meeting*.rs`) runs the same speech pipeline on longer chunks of a call, adds
+speaker separation (`speakers.rs`) and optional calendar matching (`calendar.rs`).
+
+The window and menus are built with GPUI, a GPU-accelerated Rust UI framework. Updates use
+Sparkle, loaded from `Hello.app/Contents/Frameworks`.
+
 ## Building from source
 
 ### Prerequisites
 - Xcode (the full app, for the Metal toolchain and Swift runtime) and `cmake`.
 - Rust stable (`rustup`) and Node.js 22.6 or newer.
 - An existing `Hello.app` to take the runtime frameworks (ONNX Runtime, Moonshine and Sparkle)
-  from. Set `SOURCE_APP` if it isn't in `/Applications`.
+  from: install the latest [release](https://github.com/dhruba-datta/hello/releases) first.
+  Set `SOURCE_APP` if it isn't in `/Applications`.
 
 ### Build and test
 ```sh
@@ -196,15 +236,41 @@ ditto /tmp/hello-build/Hello.app /Applications/Hello.app
 open /Applications/Hello.app
 ```
 
-### Release
-Updates are signed with an Ed25519 key (its public half is `SUPublicEDKey` in
-`app/Info.plist`). With the version bumped in `app/Info.plist` and `APP_VERSION`:
+## Releasing
+
+Releases are made by the maintainer and published on this repository's
+[Releases](https://github.com/dhruba-datta/hello/releases) page. Each release has one asset,
+`Hello.dmg`, so `releases/latest/download/Hello.dmg` always points at the newest version.
+
+1. Bump `CFBundleShortVersionString` and `CFBundleVersion` (the update system compares this one)
+   in `app/Info.plist`, and `APP_VERSION` in `src/app_window.rs`.
+2. Write the changes, one per line, in a text file.
+3. Build, sign and package. Updates are signed with an Ed25519 key whose public half is
+   `SUPublicEDKey` in `app/Info.plist`; the private key never enters this repository.
+   ```sh
+   SPARKLE_KEY=<private key .pem> SIGN_IDENTITY="Hello Local Signing" \
+     RELEASE_NOTES=notes.txt ./release-hello.sh /tmp/hello-release
+   ```
+   This makes `Hello.dmg` and `appcast.xml` (the update feed) and uploads nothing.
+4. Publish the disk image first, so the feed never points at a missing file:
+   ```sh
+   gh release create v<version> /tmp/hello-release/Hello.dmg --title "Hello <version>" \
+     --notes-file notes.txt
+   ```
+5. Copy `/tmp/hello-release/appcast.xml` to `website/appcast.xml`, update the version line in
+   `website/index.html`, and publish the website (below). Installed copies see the update
+   within a day.
+
+## Website
+
+[hello.minutecampus.com](https://hello.minutecampus.com) is the plain HTML, CSS and JavaScript
+in [`website/`](website/): no build step, no dependencies, no tracking. It also serves the
+update feed (`appcast.xml`) and redirects `/download` to the latest `Hello.dmg`.
+
 ```sh
-SPARKLE_KEY=<private key .pem> SIGN_IDENTITY="Hello Local Signing" \
-  RELEASE_NOTES=notes.txt ./release-hello.sh /tmp/hello-release
-gh release create v<version> /tmp/hello-release/Hello.dmg --repo dhruba-datta/hello-releases
+npx --yes serve@14.2.4 -l 4321 website     # preview at http://localhost:4321
+cd website && npx --yes wrangler@4 deploy  # publish (maintainer only)
 ```
-Then publish `/tmp/hello-release/appcast.xml` as `hello.minutecampus.com/appcast.xml`.
 
 ## Project layout
 
@@ -226,7 +292,8 @@ src/                      Rust source (one crate, binary "voice-control")
 app/                      Info.plist and entitlements
 native/                   Permission guide (Objective-C)
 resources/                Sounds
-branding/                 App icon and the script that draws it
+branding/                 App and menu bar icons, and the script that draws them
+website/                  The website, update feed and download redirect
 sdk/commands/             TypeScript kit for custom Voice Commands
 scripts/                  Developer setup scripts
 package-hello.sh          Builds and signs Hello.app
@@ -244,6 +311,12 @@ setup-signing.sh          Creates the local signing certificate
   `lsregister -f -R /Applications/Hello.app` (`lsregister` is in
   `/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/`).
 - **Logs:** `~/Library/Application Support/voice-control/logs/process.log`.
+
+## Contributing
+
+Bug reports, ideas and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and
+[AGENTS.md](AGENTS.md) first. Report security problems privately (see
+[SECURITY.md](SECURITY.md)).
 
 ## License
 

@@ -489,11 +489,26 @@ pub fn run(shutdown: &'static AtomicBool, launch: Launch) -> Result<()> {
                     MenuItem::submenu(Menu {
                         name: "Indicator Style".into(),
                         items: vec![
-                            MenuItem::action("Classic", crate::app_window::IndicatorStyleClassic),
                             MenuItem::action("Wave", crate::app_window::IndicatorStyleWave),
                             MenuItem::action("Orb", crate::app_window::IndicatorStyleOrb),
                             MenuItem::action("Line", crate::app_window::IndicatorStyleLine),
                             MenuItem::action("Dots", crate::app_window::IndicatorStyleDots),
+                            MenuItem::action("Pulse", crate::app_window::IndicatorStylePulse),
+                            MenuItem::action(
+                                "Equalizer",
+                                crate::app_window::IndicatorStyleEqualizer,
+                            ),
+                            MenuItem::action("Spectrum", crate::app_window::IndicatorStyleSpectrum),
+                            MenuItem::action("Twin", crate::app_window::IndicatorStyleTwin),
+                            MenuItem::action("Meter", crate::app_window::IndicatorStyleMeter),
+                            MenuItem::action("Pixels", crate::app_window::IndicatorStylePixels),
+                            MenuItem::action("Ripple", crate::app_window::IndicatorStyleRipple),
+                            MenuItem::action("Halo", crate::app_window::IndicatorStyleHalo),
+                            MenuItem::action("Blob", crate::app_window::IndicatorStyleBlob),
+                            MenuItem::action("Comet", crate::app_window::IndicatorStyleComet),
+                            MenuItem::action("Dot", crate::app_window::IndicatorStyleDot),
+                            MenuItem::action("Aurora", crate::app_window::IndicatorStyleAurora),
+                            MenuItem::action("Classic", crate::app_window::IndicatorStyleClassic),
                         ],
                     }),
                     MenuItem::submenu(Menu {
@@ -501,6 +516,10 @@ pub fn run(shutdown: &'static AtomicBool, launch: Launch) -> Result<()> {
                         items: vec![
                             MenuItem::action("Top", crate::app_window::IndicatorAtTop),
                             MenuItem::action("Bottom", crate::app_window::IndicatorAtBottom),
+                            MenuItem::separator(),
+                            MenuItem::action("Left", crate::app_window::IndicatorAlignLeft),
+                            MenuItem::action("Center", crate::app_window::IndicatorAlignCenter),
+                            MenuItem::action("Right", crate::app_window::IndicatorAlignRight),
                         ],
                     }),
                     MenuItem::separator(),

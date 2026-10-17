@@ -20,8 +20,8 @@ use gpui::{
 
 use crate::app_settings::{
     AppSettings, ColorTheme, DictationMode, HotkeyBinding, HotkeyKey, HotkeyModifiers,
-    IndicatorPosition, IndicatorStyle, LanguageRouting, MeetingAudioRetention, ModifierSide,
-    RecordingAudioBehavior, SmartEditing, TextReplacement,
+    IndicatorAlignment, IndicatorPosition, IndicatorStyle, LanguageRouting, MeetingAudioRetention,
+    ModifierSide, RecordingAudioBehavior, SmartEditing, TextReplacement,
 };
 use crate::application_catalog::InstalledApplication;
 use crate::commands::{CommandConfig, CommandInfo, CommandScope};
@@ -249,11 +249,26 @@ actions!(
         CheckForUpdates,
         IndicatorAtBottom,
         IndicatorAtTop,
+        IndicatorAlignLeft,
+        IndicatorAlignCenter,
+        IndicatorAlignRight,
         IndicatorStyleClassic,
         IndicatorStyleDots,
         IndicatorStyleLine,
         IndicatorStyleOrb,
         IndicatorStyleWave,
+        IndicatorStylePulse,
+        IndicatorStyleEqualizer,
+        IndicatorStyleSpectrum,
+        IndicatorStyleTwin,
+        IndicatorStyleMeter,
+        IndicatorStylePixels,
+        IndicatorStyleRipple,
+        IndicatorStyleHalo,
+        IndicatorStyleBlob,
+        IndicatorStyleComet,
+        IndicatorStyleDot,
+        IndicatorStyleAurora,
         LanguageAuto,
         LanguageBangla,
         LanguageEnglish,
@@ -1024,6 +1039,7 @@ pub struct AppWindow {
     sound_volume_spring: ToggleSpring,
     recording_audio_spring: ToggleSpring,
     indicator_position_spring: ToggleSpring,
+    indicator_alignment_spring: ToggleSpring,
     theme_spring: ToggleSpring,
     menu_bar_icon_toggle: ToggleSpring,
     profile_name: ProcessingInput,
@@ -1454,7 +1470,10 @@ impl AppWindow {
                 settings.recording_audio_behavior,
             ) as f32),
             indicator_position_spring: ToggleSpring::at(indicator_position_index(
-                IndicatorPosition::resolve(settings.indicator_position, settings.indicator_style),
+                IndicatorPosition::resolve(settings.indicator_position),
+            ) as f32),
+            indicator_alignment_spring: ToggleSpring::at(indicator_alignment_index(
+                settings.indicator_alignment,
             ) as f32),
             theme_spring: ToggleSpring::at(theme_index(settings.theme) as f32),
             menu_bar_icon_toggle: ToggleSpring::new(settings.show_menu_bar_icon),
@@ -2874,10 +2893,7 @@ impl AppWindow {
         // The style previews are live miniatures, so keep frames coming while visible.
         window.request_animation_frame();
         let time = self.appearance_clock.elapsed().as_secs_f32();
-        let position = IndicatorPosition::resolve(
-            self.settings.indicator_position,
-            self.settings.indicator_style,
-        );
+        let position = IndicatorPosition::resolve(self.settings.indicator_position);
         let position_spring = self.indicator_position_spring.render_position(window);
         let position_widths = [64.0, 76.0];
         let position_control = sliding_segmented_control(position_spring, &position_widths)
@@ -2932,8 +2948,11 @@ impl AppWindow {
                         card.hover(|card| card.border_color(rgb(0x3a3a3a)))
                     })
                     .child(
+                        // overflow_hidden clips to a rectangle, so the preview
+                        // rounds its own top corners to stay inside the border.
                         div()
                             .h(px(92.0))
+                            .rounded_t(px(PANEL_RADIUS - 1.0))
                             .flex()
                             .items_center()
                             .justify_center()
@@ -2992,7 +3011,35 @@ impl AppWindow {
                     .on_click(
                         cx.listener(move |this, _, _, cx| this.set_indicator_style(style, cx)),
                     )
+                    .into_any_element()
             });
+        let mut cards = cards.peekable();
+        let mut style_grid = div().flex().flex_col().gap_3();
+        while cards.peek().is_some() {
+            let mut row = cards.by_ref().take(STYLE_COLUMNS).collect::<Vec<_>>();
+            while row.len() < STYLE_COLUMNS {
+                row.push(div().flex_1().min_w(px(0.0)).into_any_element());
+            }
+            style_grid = style_grid.child(div().flex().flex_row().gap_3().children(row));
+        }
+        let alignment = self.settings.indicator_alignment;
+        let alignment_spring = self.indicator_alignment_spring.render_position(window);
+        let alignment_widths = [64.0, 72.0, 64.0];
+        let alignment_control = sliding_segmented_control(alignment_spring, &alignment_widths)
+            .children(
+                IndicatorAlignment::ALL
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, option)| {
+                        sliding_segmented_item(alignment_widths[index], alignment == option)
+                            .id(("indicator-alignment", index))
+                            .child(option.label())
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.set_indicator_alignment(option, cx)
+                            }))
+                    }),
+            );
+        let position_map = indicator_position_map(position, alignment, cx);
         settings_pane_titled(
             "Appearance",
             "appearance-scroll",
@@ -3012,23 +3059,43 @@ impl AppWindow {
                         .id("color-theme-setting"),
                     ),
                 )
-                .child(settings_section_label("RECORDING INDICATOR"))
-                .child(div().flex().flex_row().gap_3().children(cards))
+                .child(settings_section_label("INDICATOR POSITION"))
                 .child(
-                    div().mt_3().child(
-                        settings_panel().child(
-                            settings_row(
-                                "Position",
-                                match position {
-                                    IndicatorPosition::Top => "Near the top of the screen, by the menu bar",
-                                    IndicatorPosition::Bottom => "Just above the Dock",
-                                },
-                                position_control,
-                            )
-                            .border_b_0()
-                            .id("indicator-position-setting"),
+                    settings_panel()
+                        .id("indicator-position-setting")
+                        .p_4()
+                        .flex()
+                        .flex_row()
+                        .items_center()
+                        .gap_5()
+                        .child(position_map)
+                        .child(
+                            div()
+                                .flex_1()
+                                .min_w(px(0.0))
+                                .flex()
+                                .flex_col()
+                                .gap_4()
+                                .child(position_choice(
+                                    "Top or bottom",
+                                    match position {
+                                        IndicatorPosition::Top => {
+                                            "Near the top of the screen, by the menu bar"
+                                        }
+                                        IndicatorPosition::Bottom => "Just above the Dock",
+                                    },
+                                    position_control,
+                                ))
+                                .child(position_choice(
+                                    "Side",
+                                    match alignment {
+                                        IndicatorAlignment::Left => "By the left edge",
+                                        IndicatorAlignment::Center => "In the middle",
+                                        IndicatorAlignment::Right => "By the right edge",
+                                    },
+                                    alignment_control,
+                                )),
                         ),
-                    ),
                 )
                 .child(
                     div()
@@ -3036,8 +3103,10 @@ impl AppWindow {
                         .px_1()
                         .text_size(px(11.0))
                         .text_color(rgb(FAINT))
-                        .child("The indicator appears on whichever display your pointer is on. You can also change it from the Dictation menu."),
-                ),
+                        .child("Click a spot on the screen to move the indicator there. It appears on whichever display your pointer is on. You can also change it from the Dictation menu."),
+                )
+                .child(settings_section_label("INDICATOR STYLE"))
+                .child(style_grid),
         )
     }
 
@@ -4125,6 +4194,7 @@ impl AppWindow {
         let microphone_confirmation = (self.pending_microphone_policy
             == Some(MicrophonePolicyChange::DisableCommandsAndRelease))
         .then(|| {
+            // The last thing in its panel, so it rounds to the panel's bottom corners.
             div()
                 .px_4()
                 .py_3()
@@ -4132,8 +4202,9 @@ impl AppWindow {
                 .items_center()
                 .justify_between()
                 .gap_4()
-                .border_b_1()
+                .border_t_1()
                 .border_color(tone(LINE))
+                .rounded_b(px(PANEL_RADIUS - 1.0))
                 .bg(tone(CANVAS))
                 .child(
                     div().flex_1().min_w_0().child(settings_copy(
@@ -4883,11 +4954,7 @@ impl AppWindow {
         if self.settings.indicator_style == style {
             return;
         }
-        if self.update_settings(cx, |settings| settings.indicator_style = style) {
-            let position = IndicatorPosition::resolve(self.settings.indicator_position, style);
-            self.indicator_position_spring
-                .set_target(indicator_position_index(position) as f32);
-        }
+        self.update_settings(cx, |settings| settings.indicator_style = style);
     }
 
     fn set_theme(&mut self, theme: ColorTheme, cx: &mut Context<Self>) {
@@ -4906,6 +4973,39 @@ impl AppWindow {
         if self.update_settings(cx, |settings| settings.indicator_position = Some(position)) {
             self.indicator_position_spring
                 .set_target(indicator_position_index(position) as f32);
+        }
+    }
+
+    fn set_indicator_alignment(&mut self, alignment: IndicatorAlignment, cx: &mut Context<Self>) {
+        if self.settings.indicator_alignment == alignment {
+            return;
+        }
+        if self.update_settings(cx, |settings| settings.indicator_alignment = alignment) {
+            self.indicator_alignment_spring
+                .set_target(indicator_alignment_index(alignment) as f32);
+        }
+    }
+
+    /// Moves the indicator to one of the six places on the Appearance map.
+    fn set_indicator_place(
+        &mut self,
+        position: IndicatorPosition,
+        alignment: IndicatorAlignment,
+        cx: &mut Context<Self>,
+    ) {
+        if self.settings.indicator_position == Some(position)
+            && self.settings.indicator_alignment == alignment
+        {
+            return;
+        }
+        if self.update_settings(cx, |settings| {
+            settings.indicator_position = Some(position);
+            settings.indicator_alignment = alignment;
+        }) {
+            self.indicator_position_spring
+                .set_target(indicator_position_index(position) as f32);
+            self.indicator_alignment_spring
+                .set_target(indicator_alignment_index(alignment) as f32);
         }
     }
 
@@ -5772,11 +5872,16 @@ impl AppWindow {
             .collect::<Vec<_>>();
 
         let available_rows = if self.transformation_picker_open {
-            catalog
+            let available = catalog
                 .iter()
                 .enumerate()
                 .filter(|(_, transformation)| !selected.contains(&transformation.id))
-                .map(|(index, transformation)| {
+                .collect::<Vec<_>>();
+            let last = available.len().saturating_sub(1);
+            available
+                .into_iter()
+                .enumerate()
+                .map(|(position, (index, transformation))| {
                     let id = transformation.id.clone();
                     let name = transformation.name.clone();
                     let description = transformation.description.clone();
@@ -5791,6 +5896,11 @@ impl AppWindow {
                         .gap_3()
                         .border_t_1()
                         .border_color(tone(LINE))
+                        // The last row meets the panel's rounded bottom; clipping is
+                        // rectangular, so the row rounds its own corners.
+                        .when(position == last, |row| {
+                            row.rounded_b(px(PANEL_RADIUS - 1.0))
+                        })
                         .hover(|row| row.bg(tone(SURFACE_HOVER)))
                         .child(
                             div()
@@ -8985,6 +9095,51 @@ impl Render for AppWindow {
             .on_action(cx.listener(|this, _: &IndicatorStyleDots, _, cx| {
                 this.set_indicator_style(IndicatorStyle::Dots, cx)
             }))
+            .on_action(cx.listener(|this, _: &IndicatorStylePulse, _, cx| {
+                this.set_indicator_style(IndicatorStyle::Pulse, cx)
+            }))
+            .on_action(cx.listener(|this, _: &IndicatorStyleEqualizer, _, cx| {
+                this.set_indicator_style(IndicatorStyle::Equalizer, cx)
+            }))
+            .on_action(cx.listener(|this, _: &IndicatorStyleSpectrum, _, cx| {
+                this.set_indicator_style(IndicatorStyle::Spectrum, cx)
+            }))
+            .on_action(cx.listener(|this, _: &IndicatorStyleTwin, _, cx| {
+                this.set_indicator_style(IndicatorStyle::Twin, cx)
+            }))
+            .on_action(cx.listener(|this, _: &IndicatorStyleMeter, _, cx| {
+                this.set_indicator_style(IndicatorStyle::Meter, cx)
+            }))
+            .on_action(cx.listener(|this, _: &IndicatorStylePixels, _, cx| {
+                this.set_indicator_style(IndicatorStyle::Pixels, cx)
+            }))
+            .on_action(cx.listener(|this, _: &IndicatorStyleRipple, _, cx| {
+                this.set_indicator_style(IndicatorStyle::Ripple, cx)
+            }))
+            .on_action(cx.listener(|this, _: &IndicatorStyleHalo, _, cx| {
+                this.set_indicator_style(IndicatorStyle::Halo, cx)
+            }))
+            .on_action(cx.listener(|this, _: &IndicatorStyleBlob, _, cx| {
+                this.set_indicator_style(IndicatorStyle::Blob, cx)
+            }))
+            .on_action(cx.listener(|this, _: &IndicatorStyleComet, _, cx| {
+                this.set_indicator_style(IndicatorStyle::Comet, cx)
+            }))
+            .on_action(cx.listener(|this, _: &IndicatorStyleDot, _, cx| {
+                this.set_indicator_style(IndicatorStyle::Dot, cx)
+            }))
+            .on_action(cx.listener(|this, _: &IndicatorStyleAurora, _, cx| {
+                this.set_indicator_style(IndicatorStyle::Aurora, cx)
+            }))
+            .on_action(cx.listener(|this, _: &IndicatorAlignLeft, _, cx| {
+                this.set_indicator_alignment(IndicatorAlignment::Left, cx)
+            }))
+            .on_action(cx.listener(|this, _: &IndicatorAlignCenter, _, cx| {
+                this.set_indicator_alignment(IndicatorAlignment::Center, cx)
+            }))
+            .on_action(cx.listener(|this, _: &IndicatorAlignRight, _, cx| {
+                this.set_indicator_alignment(IndicatorAlignment::Right, cx)
+            }))
             .on_action(cx.listener(|this, _: &IndicatorAtTop, _, cx| {
                 this.set_indicator_position(IndicatorPosition::Top, cx)
             }))
@@ -9432,6 +9587,14 @@ fn theme_index(theme: ColorTheme) -> usize {
         .unwrap_or(0)
 }
 
+fn indicator_alignment_index(alignment: IndicatorAlignment) -> usize {
+    match alignment {
+        IndicatorAlignment::Left => 0,
+        IndicatorAlignment::Center => 1,
+        IndicatorAlignment::Right => 2,
+    }
+}
+
 fn indicator_position_index(position: IndicatorPosition) -> usize {
     match position {
         IndicatorPosition::Top => 0,
@@ -9521,6 +9684,470 @@ fn preview_pill(width: f32, height: f32) -> Div {
             blur_radius: px(12.0),
             spread_radius: px(0.0),
         }])
+}
+
+/// Indicator style cards per row on the Appearance page.
+const STYLE_COLUMNS: usize = 5;
+
+fn position_choice(
+    title: &'static str,
+    description: &'static str,
+    control: impl IntoElement,
+) -> Div {
+    div()
+        .flex()
+        .items_center()
+        .justify_between()
+        .gap_3()
+        .child(
+            div()
+                .min_w(px(0.0))
+                .child(settings_copy(title, description)),
+        )
+        .child(control)
+}
+
+/// A small screen with the six places the indicator can sit; click one to move it there.
+fn indicator_position_map(
+    position: IndicatorPosition,
+    alignment: IndicatorAlignment,
+    cx: &mut Context<AppWindow>,
+) -> Div {
+    const WIDTH: f32 = 212.0;
+    const HEIGHT: f32 = 128.0;
+    const SPOT_WIDTH: f32 = 60.0;
+    const SPOT_HEIGHT: f32 = 24.0;
+    const DOCK_WIDTH: f32 = 84.0;
+    let spots = IndicatorPosition::ALL.into_iter().flat_map(|vertical| {
+        IndicatorAlignment::ALL
+            .into_iter()
+            .map(move |horizontal| (vertical, horizontal))
+    });
+    // A desktop in fixed colors, so it reads as a screen in both themes.
+    div()
+        .relative()
+        .flex_none()
+        .w(px(WIDTH))
+        .h(px(HEIGHT))
+        .rounded(px(10.0))
+        .overflow_hidden()
+        .border_1()
+        .border_color(tone(LINE))
+        .bg(linear_gradient(
+            150.0,
+            linear_color_stop(gpui::rgb(0x34478f), 0.0),
+            linear_color_stop(gpui::rgb(0x8a3f7c), 1.0),
+        ))
+        .child(
+            div()
+                .absolute()
+                .top_0()
+                .left_0()
+                .w_full()
+                .h(px(7.0))
+                .rounded_t(px(9.0))
+                .bg(gpui::rgba(0xffffff33)),
+        )
+        .child(
+            div()
+                .absolute()
+                .bottom(px(4.0))
+                .left(px((WIDTH - DOCK_WIDTH) / 2.0))
+                .w(px(DOCK_WIDTH))
+                .h(px(10.0))
+                .rounded(px(4.0))
+                .bg(gpui::rgba(0xffffff38)),
+        )
+        .children(spots.enumerate().map(|(index, (vertical, horizontal))| {
+            let selected = vertical == position && horizontal == alignment;
+            let left = match horizontal {
+                IndicatorAlignment::Left => 8.0,
+                IndicatorAlignment::Center => (WIDTH - SPOT_WIDTH) / 2.0,
+                IndicatorAlignment::Right => WIDTH - SPOT_WIDTH - 8.0,
+            };
+            let top = match vertical {
+                IndicatorPosition::Top => 11.0,
+                IndicatorPosition::Bottom => HEIGHT - SPOT_HEIGHT - 18.0,
+            };
+            let marker = if selected {
+                div()
+                    .w(px(32.0))
+                    .h(px(11.0))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .gap(px(2.0))
+                    .rounded_full()
+                    .bg(gpui::rgb(0x0b0b0c))
+                    .border_1()
+                    .border_color(gpui::rgba(0xffffff80))
+                    .children([3.0, 6.0, 4.0, 7.0, 3.0].map(|height| {
+                        div()
+                            .w(px(1.5))
+                            .h(px(height))
+                            .rounded_full()
+                            .bg(gpui::rgb(0xffffff))
+                    }))
+            } else {
+                div()
+                    .size(px(6.0))
+                    .rounded_full()
+                    .bg(gpui::rgba(0xffffff66))
+            };
+            div()
+                .id(("indicator-place", index))
+                .absolute()
+                .left(px(left))
+                .top(px(top))
+                .w(px(SPOT_WIDTH))
+                .h(px(SPOT_HEIGHT))
+                .flex()
+                .items_center()
+                .justify_center()
+                .rounded(px(8.0))
+                .cursor_pointer()
+                .when(!selected, |spot| {
+                    spot.hover(|spot| spot.bg(gpui::rgba(0xffffff26)))
+                })
+                .child(marker)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.set_indicator_place(vertical, horizontal, cx)
+                }))
+        }))
+}
+
+/// Blue to violet to pink, as in the indicator shader.
+fn indicator_palette(t: f32, alpha: f32) -> gpui::Rgba {
+    let blue = [0.32, 0.56, 1.0];
+    let violet = [0.74, 0.42, 1.0];
+    let pink = [1.0, 0.46, 0.72];
+    let t = t.clamp(0.0, 1.0);
+    let (from, to, f) = if t < 0.5 {
+        (blue, violet, t * 2.0)
+    } else {
+        (violet, pink, t * 2.0 - 1.0)
+    };
+    gpui::Rgba {
+        r: from[0] + (to[0] - from[0]) * f,
+        g: from[1] + (to[1] - from[1]) * f,
+        b: from[2] + (to[2] - from[2]) * f,
+        a: alpha,
+    }
+}
+
+fn white(alpha: f32) -> gpui::Rgba {
+    gpui::Rgba {
+        r: 1.0,
+        g: 1.0,
+        b: 1.0,
+        a: alpha.clamp(0.0, 1.0),
+    }
+}
+
+/// Paints a preview in points around the pill's center, with y growing downward like
+/// the indicator shader, scaled like the other previews.
+struct PreviewPainter<'a> {
+    window: &'a mut Window,
+    center: gpui::Point<Pixels>,
+}
+
+impl PreviewPainter<'_> {
+    fn at(&self, x: f32, y: f32) -> gpui::Point<Pixels> {
+        gpui::point(self.center.x + preview_px(x), self.center.y + preview_px(y))
+    }
+
+    fn rounded(
+        &mut self,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        color: impl Into<gpui::Background>,
+    ) {
+        let bounds = gpui::Bounds::new(
+            self.at(x - width / 2.0, y - height / 2.0),
+            size(preview_px(width), preview_px(height)),
+        );
+        self.window.paint_quad(
+            gpui::fill(bounds, color)
+                .corner_radii(gpui::Corners::all(preview_px(width.min(height) / 2.0))),
+        );
+    }
+
+    fn dot(&mut self, x: f32, y: f32, radius: f32, color: impl Into<gpui::Background>) {
+        self.rounded(x, y, radius * 2.0, radius * 2.0, color);
+    }
+
+    fn ring(&mut self, radius: f32, thickness: f32, color: gpui::Rgba) {
+        let bounds = gpui::Bounds::new(
+            self.at(-radius, -radius),
+            size(preview_px(radius * 2.0), preview_px(radius * 2.0)),
+        );
+        self.window.paint_quad(gpui::quad(
+            bounds,
+            gpui::Corners::all(preview_px(radius)),
+            gpui::transparent_black(),
+            gpui::Edges::all(preview_px(thickness)),
+            color,
+            gpui::BorderStyle::Solid,
+        ));
+    }
+
+    fn trace(
+        &mut self,
+        points: impl IntoIterator<Item = (f32, f32)>,
+        width: f32,
+        color: impl Into<gpui::Background>,
+    ) {
+        let mut path = gpui::PathBuilder::stroke(preview_px(width));
+        for (index, (x, y)) in points.into_iter().enumerate() {
+            let point = self.at(x, y);
+            if index == 0 {
+                path.move_to(point);
+            } else {
+                path.line_to(point);
+            }
+        }
+        if let Ok(path) = path.build() {
+            self.window.paint_path(path, color);
+        }
+    }
+
+    fn shape(
+        &mut self,
+        points: impl IntoIterator<Item = (f32, f32)>,
+        color: impl Into<gpui::Background>,
+    ) {
+        let mut path = gpui::PathBuilder::fill();
+        for (index, (x, y)) in points.into_iter().enumerate() {
+            let point = self.at(x, y);
+            if index == 0 {
+                path.move_to(point);
+            } else {
+                path.line_to(point);
+            }
+        }
+        path.close();
+        if let Ok(path) = path.build() {
+            self.window.paint_path(path, color);
+        }
+    }
+}
+
+/// A preview pill sized like the real indicator, painted by `paint`.
+fn painted_preview(
+    style: IndicatorStyle,
+    paint: impl Fn(&mut PreviewPainter) + 'static,
+) -> AnyElement {
+    let (width, height) = crate::dictation_indicator::hud_size(style);
+    preview_pill(width, height)
+        .child(
+            gpui::canvas(
+                |_, _, _| {},
+                move |bounds, _, window, _| {
+                    paint(&mut PreviewPainter {
+                        window,
+                        center: bounds.center(),
+                    })
+                },
+            )
+            .absolute()
+            .top_0()
+            .left_0()
+            .size_full(),
+        )
+        .into_any_element()
+}
+
+fn pulse_shape(d: f32) -> f32 {
+    (-(d / 1.5).powi(2)).exp2()
+        - 0.35 * (-((d + 3.6) / 1.7).powi(2)).exp2()
+        - 0.45 * (-((d - 3.2) / 1.7).powi(2)).exp2()
+}
+
+/// Points along -half..half, `steps` apart.
+fn span(half: f32, steps: usize) -> impl Iterator<Item = f32> {
+    (0..=steps).map(move |index| -half + index as f32 * (2.0 * half / steps as f32))
+}
+
+/// Live previews of the styles added in 1.0.4. They follow the shader's shapes and
+/// motion at preview scale.
+fn painted_indicator_preview(style: IndicatorStyle, time: f32, level: f32) -> AnyElement {
+    painted_preview(style, move |paint| match style {
+        IndicatorStyle::Pulse => {
+            let half = 26.0;
+            let head = -half + 2.0 * half * (time * 0.9).fract();
+            let amplitude = 8.0 * level.max(0.14);
+            paint.trace(
+                span(half, 96).map(|x| (x, -amplitude * pulse_shape(x - head))),
+                1.4,
+                white(0.95),
+            );
+        }
+        IndicatorStyle::Equalizer => {
+            for index in 0..7 {
+                let slot = index as f32 - 3.0;
+                let jitter = 0.5 + 0.5 * (time * 11.0 + slot * 2.3).sin();
+                let amount = (level * (0.45 + 0.55 * jitter)).max(0.12);
+                let height = (16.0 * amount).max(3.6);
+                paint.rounded(slot * 6.6, 8.0 - height / 2.0, 3.6, height, white(0.95));
+            }
+        }
+        IndicatorStyle::Spectrum => {
+            for index in 0..11 {
+                let slot = index as f32 - 5.0;
+                let envelope = 1.0 - slot.abs() / 5.0 * 0.6;
+                let jitter = 0.6 + 0.4 * (time * 13.0 + slot * 1.3).sin();
+                let amount = (level * envelope * jitter).max(0.1);
+                paint.rounded(
+                    slot * 4.4,
+                    0.0,
+                    2.2,
+                    2.2 + 17.8 * amount,
+                    indicator_palette(index as f32 / 10.0, 1.0),
+                );
+            }
+        }
+        IndicatorStyle::Twin => {
+            let half = 25.0;
+            for (index, color) in [(0, gpui::rgb(0x5c9eff)), (1, gpui::rgb(0xff7abd))] {
+                let direction = if index == 0 { 1.0 } else { -1.0 };
+                let amplitude = 7.0 * level.max(0.1);
+                paint.trace(
+                    span(half, 64).map(|x| {
+                        let taper = 1.0 - (x / half).powi(2);
+                        let phase = x * 0.36 - direction * time * 7.0 + index as f32 * 1.6;
+                        (x, amplitude * taper * phase.sin())
+                    }),
+                    1.3,
+                    color,
+                );
+            }
+        }
+        IndicatorStyle::Meter => {
+            let half = 23.0;
+            paint.rounded(0.0, 0.0, half * 2.0, 4.4, white(0.14));
+            let fill = (2.0 * half * level.max(0.05)).max(4.4);
+            paint.rounded(
+                -half + fill / 2.0,
+                0.0,
+                fill,
+                4.4,
+                linear_gradient(
+                    90.0,
+                    linear_color_stop(indicator_palette(0.0, 1.0), 0.0),
+                    linear_color_stop(indicator_palette(1.0, 1.0), 1.0),
+                ),
+            );
+        }
+        IndicatorStyle::Pixels => {
+            for column in 0..9 {
+                let slot = column as f32 - 4.0;
+                let envelope = 1.0 - slot.abs() / 4.0 * 0.5;
+                let jitter = 0.55 + 0.45 * (time * 12.0 + slot * 1.9).sin();
+                let lit_rows = (level * envelope * jitter * 4.0).max(0.6);
+                for row in 0..4 {
+                    let from_bottom = 3 - row;
+                    let y = (row as f32 - 1.5) * 4.6;
+                    paint.rounded(slot * 4.6, y, 3.0, 3.0, white(0.12));
+                    if (from_bottom as f32) + 0.5 <= lit_rows {
+                        paint.rounded(
+                            slot * 4.6,
+                            y,
+                            3.0,
+                            3.0,
+                            indicator_palette(from_bottom as f32 / 3.0, 0.95),
+                        );
+                    }
+                }
+            }
+        }
+        IndicatorStyle::Ripple => {
+            for index in 0..3 {
+                let progress = (time * (0.5 + 0.9 * level) + index as f32 / 3.0).fract();
+                let radius = (progress * 13.0).max(1.0);
+                paint.ring(radius, 0.9, white((1.0 - progress) * (0.35 + 0.65 * level)));
+            }
+            paint.dot(0.0, 0.0, 2.4 + 2.2 * level, white(1.0));
+        }
+        IndicatorStyle::Halo => {
+            let color = indicator_palette(0.5 + 0.5 * (time * 2.0).sin(), 1.0);
+            paint.ring(8.5 + 1.0, 1.4 + 3.6 * level, color);
+        }
+        IndicatorStyle::Blob => {
+            let base = 6.0 + 4.5 * level;
+            let points = (0..48).map(|index| {
+                let angle = index as f32 / 48.0 * std::f32::consts::TAU;
+                let wobble =
+                    (angle * 3.0 + time * 2.2).sin() + 0.6 * (angle * 5.0 - time * 3.1).sin();
+                let radius = base * (1.0 + 0.12 * wobble * (0.4 + level));
+                (radius * angle.cos(), radius * angle.sin())
+            });
+            paint.shape(
+                points,
+                linear_gradient(
+                    (time * 60.0) % 360.0,
+                    linear_color_stop(indicator_palette(0.0, 1.0), 0.0),
+                    linear_color_stop(indicator_palette(1.0, 1.0), 1.0),
+                ),
+            );
+        }
+        IndicatorStyle::Comet => {
+            let radius = 9.0;
+            paint.ring(radius, 1.0, white(0.12));
+            let head = time * (2.5 + 6.0 * level);
+            for index in (0..10).rev() {
+                let behind = index as f32 * 0.16;
+                let fade = (-behind * 1.4).exp2();
+                let angle = head - behind;
+                paint.dot(
+                    radius * angle.cos(),
+                    radius * angle.sin(),
+                    (0.6 + 1.0 * fade) * if index == 0 { 1.0 + 0.6 * level } else { 1.0 },
+                    if index == 0 {
+                        white(1.0)
+                    } else {
+                        indicator_palette(0.3 + 0.5 * level, fade)
+                    },
+                );
+            }
+        }
+        IndicatorStyle::Dot => {
+            let radius = 2.2 + 3.0 * level;
+            paint.dot(
+                0.0,
+                0.0,
+                radius + 1.6 + 2.0 * level,
+                gpui::Rgba {
+                    r: 0.55,
+                    g: 0.75,
+                    b: 1.0,
+                    a: 0.3,
+                },
+            );
+            paint.dot(0.0, 0.0, radius, white(1.0));
+        }
+        IndicatorStyle::Aurora => {
+            let energy = 0.25 + 0.75 * level;
+            let half = 28.0;
+            for index in 0..3 {
+                let offset = index as f32 * 2.1;
+                let speed = 1.6 + 0.4 * index as f32;
+                paint.trace(
+                    span(half, 48).map(|x| {
+                        let fade = 1.0 - (x.abs() / half).powi(4);
+                        (
+                            x,
+                            (x * 0.13 + time * speed + offset).sin() * 5.3 * (0.4 + energy) * fade,
+                        )
+                    }),
+                    2.0 + 3.0 * energy,
+                    indicator_palette(index as f32 / 2.0, 0.45 * energy + 0.15),
+                );
+            }
+        }
+        _ => {}
+    })
 }
 
 /// A live miniature of each recording indicator style for the Appearance page.
@@ -9629,6 +10256,7 @@ fn indicator_preview(style: IndicatorStyle, time: f32) -> AnyElement {
                     .bg(gpui::rgb(0xffffff))
             }))
             .into_any_element(),
+        other => painted_indicator_preview(other, time, level),
     }
 }
 

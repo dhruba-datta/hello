@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hello: free, offline dictation for Mac</title>
+  <meta name="description" content="Hello is free dictation for Mac. Speak in any app, in Bangla, English or both. Speech recognition runs on your Mac, with no accounts and no uploads. A Minute Campus project." />
+  <meta name="theme-color" content="#0b0b0f" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f6f6f9" media="(prefers-color-scheme: light)" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="author" content="Minute Campus" />
+  <link rel="canonical" href="https://hello.minutecampus.com/" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Hello" />
+  <meta property="og:title" content="Hello: free, offline dictation for Mac" />
+  <meta property="og:description" content="Speak in any app. Bangla, English or both, mixed freely. Everything runs on your Mac." />
+  <meta property="og:url" content="https://hello.minutecampus.com/" />
+  <meta property="og:image" content="https://hello.minutecampus.com/assets/icon-1024.png" />
+  <meta property="og:image:alt" content="The Hello app icon" />
+  <meta property="og:locale" content="en_US" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Hello: free, offline dictation for Mac" />
+  <meta name="twitter:description" content="Speak in any app. Bangla, English or both. Everything runs on your Mac." />
+  <meta name="twitter:image" content="https://hello.minutecampus.com/assets/icon-1024.png" />
+
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon-64.png" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Hello",
+    "description": "Free, offline voice dictation and meeting notes for Mac. Bangla and English, mixed freely.",
+    "operatingSystem": "macOS 15 or later (Apple silicon)",
+    "applicationCategory": "UtilitiesApplication",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "url": "https://hello.minutecampus.com/",
+    "publisher": { "@type": "Organization", "name": "Minute Campus", "url": "https://minutecampus.com" }
+  }
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header" id="top">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top" aria-label="Hello, back to top">
+        <img src="assets/icon-256.png" alt="" width="30" height="30" />
+        <span>Hello</span>
+      </a>
+
+      <nav class="nav-links" aria-label="Sections">
+        <a href="#features">Features</a>
+        <a href="#bangla">Bangla</a>
+        <a href="#notetaker">Notetaker</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#setup">Setup</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+
+      <a class="btn btn-primary btn-small nav-download" href="/download">
+        <svg class="apple" viewBox="0 0 17 20" aria-hidden="true"><path d="M14.1 10.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9C3.6 4.7 2 5.8 1.1 7.3c-1.8 3.2-.5 7.9 1.3 10.5.9 1.3 1.9 2.7 3.2 2.6 1.3-.1 1.8-.8 3.4-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.2-2.6 1-1.5 1.4-2.9 1.4-3-.1 0-2.8-1.1-2.9-4.2zM11.6 3c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.1 1.2.1 2.3-.6 3.1-1.5z"/></svg>
+        Download
+      </a>
+
+      <button class="nav-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="site-menu">
+        <span aria-hidden="true"></span><span aria-hidden="true"></span>
+      </button>
+    </div>
+
+    <div class="mobile-menu" id="site-menu" hidden>
+      <a href="#features">Features</a>
+      <a href="#bangla">Bangla and English</a>
+      <a href="#notetaker">Notetaker</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#setup">Setup and requirements</a>
+      <a href="#faq">FAQ</a>
+      <a class="btn btn-primary menu-download" href="/download">Download for Mac</a>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <!-- Hero -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="wrap hero-inner">
+        <div class="hero-copy">
+          <p class="pill reveal">
+            <span class="pill-dot" aria-hidden="true"></span>
+            Version 1.0.3 · For Mac
+          </p>
+          <h1 class="reveal" id="hero-title">Speak. <span class="grad">Hello</span> types.</h1>
+          <p class="lede reveal">
+            Free, offline dictation for your Mac. Hold Option, speak, and let go. Your words appear in the app you are using.
+            Hello understands <strong>Bangla and English</strong>, even when you switch in the middle of a sentence.
+          </p>
+          <div class="hero-ctas reveal">
+            <a class="btn btn-primary" href="/download">
+              <svg class="apple" viewBox="0 0 17 20" aria-hidden="true"><path d="M14.1 10.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9C3.6 4.7 2 5.8 1.1 7.3c-1.8 3.2-.5 7.9 1.3 10.5.9 1.3 1.9 2.7 3.2 2.6 1.3-.1 1.8-.8 3.4-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.2-2.6 1-1.5 1.4-2.9 1.4-3-.1 0-2.8-1.1-2.9-4.2zM11.6 3c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.1 1.2.1 2.3-.6 3.1-1.5z"/></svg>
+              Download for Mac
+            </a>
+            <a class="btn btn-ghost" href="#how">See how it works</a>
+          </div>
+          <ul class="hero-facts reveal">
+            <li>Free and open source</li>
+            <li>Works offline</li>
+            <li>No account</li>
+            <li>Apple silicon, macOS 15 or later</li>
+          </ul>
+        </div>
+
+        <!-- Animated example. Decorative: the real text is in the Bangla and Notetaker sections. -->
+        <div class="hero-demo reveal" aria-hidden="true">
+          <div class="mac-window">
+            <div class="mac-bar">
+              <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+              <span class="mac-title" id="demo-app">Notes</span>
+            </div>
+            <div class="mac-body">
+              <div class="demo-meta">
+                <span class="demo-lang" id="demo-lang">English</span>
+                <span class="demo-hint" id="demo-hint">Holding <kbd>⌥ Option</kbd></span>
+              </div>
+              <p class="demo-text" id="demo-text"><span class="caret"></span></p>
+            </div>
+          </div>
+          <div class="indicator-pill" id="demo-indicator">
+            <span class="wave-pill"><i style="--h:6px; --d:-0.2s"></i><i style="--h:9px; --d:-0.5s"></i><i style="--h:13px; --d:-0.1s"></i><i style="--h:16px; --d:-0.7s"></i><i style="--h:20px; --d:-0.3s"></i><i style="--h:16px; --d:-0.6s"></i><i style="--h:13px; --d:-0.15s"></i><i style="--h:9px; --d:-0.45s"></i><i style="--h:6px; --d:-0.8s"></i></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Facts strip -->
+    <section class="strip" aria-label="Highlights">
+      <div class="wrap strip-inner">
+        <div><strong>100%</strong><span>on your Mac</span></div>
+        <div><strong>0</strong><span>accounts or API keys</span></div>
+        <div><strong>2</strong><span>languages in one sentence</span></div>
+        <div><strong>$0</strong><span>free</span></div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="section" id="how" aria-labelledby="how-title">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <p class="eyebrow">How it works</p>
+          <h2 id="how-title">Three steps, in any app.</h2>
+          <p class="sub">If an app has a text field, Hello can type in it: email, chat, notes, documents, your code editor and browser pages.</p>
+        </header>
+
+        <ol class="steps">
+          <li class="step reveal">
+            <div class="step-visual" aria-hidden="true">
+              <span class="key key-press">⌥</span>
+            </div>
+            <span class="step-num" aria-hidden="true">1</span>
+            <h3>Hold Option</h3>
+            <p>Hold the shortcut (Option by default) in any app. The indicator shows that Hello is listening.</p>
+          </li>
+          <li class="step reveal">
+            <div class="step-visual" aria-hidden="true">
+              <span class="wave-mini"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+            </div>
+            <span class="step-num" aria-hidden="true">2</span>
+            <h3>Speak naturally</h3>
+            <p>Talk the way you normally do: Bangla, English, or both in the same sentence.</p>
+          </li>
+          <li class="step reveal">
+            <div class="step-visual" aria-hidden="true">
+              <span class="typed">Done<span class="caret"></span></span>
+            </div>
+            <span class="step-num" aria-hidden="true">3</span>
+            <h3>Let go</h3>
+            <p>Hello cleans up the text and pastes it where your cursor is.</p>
+          </li>
+        </ol>
+
+        <div class="try reveal">
+          <div class="try-copy">
+            <h3>Preview the indicator</h3>
+            <p>Hold the button, or hold <kbd>⌥ Option</kbd> on this page, to see the animation. This is only a preview. Nothing is recorded or pasted.</p>
+          </div>
+          <button class="try-btn" id="try-btn" type="button" aria-describedby="try-state">
+            <span class="try-state" id="try-state" aria-live="polite">Hold to preview</span>
+            <span class="wave-pill mini" aria-hidden="true"><i style="--h:6px; --d:-0.2s"></i><i style="--h:9px; --d:-0.5s"></i><i style="--h:13px; --d:-0.1s"></i><i style="--h:16px; --d:-0.7s"></i><i style="--h:20px; --d:-0.3s"></i><i style="--h:16px; --d:-0.6s"></i><i style="--h:13px; --d:-0.15s"></i><i style="--h:9px; --d:-0.45s"></i><i style="--h:6px; --d:-0.8s"></i></span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="section" id="features" aria-labelledby="features-title">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <p class="eyebrow">Features</p>
+          <h2 id="features-title">Everything you need to stop typing.</h2>
+          <p class="sub">A native Mac app. Speech recognition runs on your Mac, using its GPU, so dictation works without internet once the models are downloaded.</p>
+        </header>
+
+        <div class="bento">
+          <!-- Smart editing -->
+          <article class="card card-wide reveal">
+            <div class="card-head">
+              <span class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M14 6l4 4"/></svg>
+              </span>
+              <h3>Smart editing</h3>
+            </div>
+            <p>Hello tidies your speech as you talk. There are five rules, all on by default, and you can turn off any of them in Settings.</p>
+            <div class="before-after">
+              <div class="ba ba-before">
+                <span class="ba-label">You say</span>
+                <p>“Um, hello team. Let's meet at five scratch that let's meet at six.”</p>
+              </div>
+              <div class="ba-arrow" aria-hidden="true">→</div>
+              <div class="ba ba-after">
+                <span class="ba-label">Hello types</span>
+                <p>Hello team. Let's meet at six.</p>
+              </div>
+            </div>
+            <ul class="chips">
+              <li>Removes “um”, “uh” and “erm”</li>
+              <li>“scratch that” deletes the sentence before it</li>
+              <li>“new line” and “new paragraph”</li>
+              <li>“number one … number two …” makes a list</li>
+              <li>Adds a full stop when you stop mid-sentence</li>
+            </ul>
+          </article>
+
+          <!-- Hands-free lock -->
+          <article class="card reveal">
+            <div class="card-head">
+              <span class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              </span>
+              <h3>Hands-free lock</h3>
+            </div>
+            <p>Double-tap Option to keep recording without holding the key. Useful for longer thoughts.</p>
+            <div class="mini-keys" aria-label="Double-tap Option"><span class="key sm" aria-hidden="true">⌥</span><span class="key sm" aria-hidden="true">⌥</span><span class="mini-note">double-tap</span></div>
+          </article>
+
+          <!-- Paste last -->
+          <article class="card reveal">
+            <div class="card-head">
+              <span class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M8 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/></svg>
+              </span>
+              <h3>Paste last</h3>
+            </div>
+            <p>Missed the text field? Paste your last dictation again with <kbd>⌥ Option</kbd> <kbd>⇧ Shift</kbd> <kbd>V</kbd>.</p>
+          </article>
+
+          <!-- Indicator styles -->
+          <article class="card card-wide reveal">
+            <div class="card-head">
+              <span class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+              </span>
+              <h3>17 recording indicators</h3>
+            </div>
+            <p>Choose the look you like in Settings → Appearance. Each style shows your voice while you speak and has its own processing animation. Wave is the default.</p>
+
+            <div class="spec-wrap">
+              <div class="spec-tabs" role="tablist" aria-label="Indicator style">
+                <button type="button" role="tab" id="tab-wave" data-style="wave" data-desc="Bars that follow your voice" aria-controls="style-panel" aria-selected="true" tabindex="0">Wave</button>
+                <button type="button" role="tab" id="tab-orb" data-style="orb" data-desc="A glowing orb that pulses" aria-controls="style-panel" aria-selected="false" tabindex="-1">Orb</button>
+                <button type="button" role="tab" id="tab-line" data-style="line" data-desc="A smooth sound-wave line" aria-controls="style-panel" aria-selected="false" tabindex="-1">Line</button>
+                <button type="button" role="tab" id="tab-dots" data-style="dots" data-desc="Five dots that bounce" aria-controls="style-panel" aria-selected="false" tabindex="-1">Dots</button>
+                <button type="button" role="tab" id="tab-pulse" data-style="pulse" data-desc="A heartbeat line that jumps as you talk" aria-controls="style-panel" aria-selected="false" tabindex="-1">Pulse</button>
+                <button type="button" role="tab" id="tab-equalizer" data-style="equalizer" data-desc="Bars that rise from the bottom" aria-controls="style-panel" aria-selected="false" tabindex="-1">Equalizer</button>
+                <button type="button" role="tab" id="tab-spectrum" data-style="spectrum" data-desc="Colorful bars, blue to pink" aria-controls="style-panel" aria-selected="false" tabindex="-1">Spectrum</button>
+                <button type="button" role="tab" id="tab-twin" data-style="twin" data-desc="Two colored waves that weave" aria-controls="style-panel" aria-selected="false" tabindex="-1">Twin</button>
+                <button type="button" role="tab" id="tab-meter" data-style="meter" data-desc="A level bar that fills as you speak" aria-controls="style-panel" aria-selected="false" tabindex="-1">Meter</button>
+                <button type="button" role="tab" id="tab-pixels" data-style="pixels" data-desc="A grid of lights, like a sound meter" aria-controls="style-panel" aria-selected="false" tabindex="-1">Pixels</button>
+                <button type="button" role="tab" id="tab-ripple" data-style="ripple" data-desc="Rings that spread as you speak" aria-controls="style-panel" aria-selected="false" tabindex="-1">Ripple</button>
+                <button type="button" role="tab" id="tab-halo" data-style="halo" data-desc="A ring of light that grows" aria-controls="style-panel" aria-selected="false" tabindex="-1">Halo</button>
+                <button type="button" role="tab" id="tab-blob" data-style="blob" data-desc="A soft shape that wobbles" aria-controls="style-panel" aria-selected="false" tabindex="-1">Blob</button>
+                <button type="button" role="tab" id="tab-comet" data-style="comet" data-desc="A light that circles faster as you talk" aria-controls="style-panel" aria-selected="false" tabindex="-1">Comet</button>
+                <button type="button" role="tab" id="tab-dot" data-style="dot" data-desc="One small dot that grows" aria-controls="style-panel" aria-selected="false" tabindex="-1">Dot</button>
+                <button type="button" role="tab" id="tab-aurora" data-style="aurora" data-desc="Colors that flow like northern lights" aria-controls="style-panel" aria-selected="false" tabindex="-1">Aurora</button>
+                <button type="button" role="tab" id="tab-classic" data-style="classic" data-desc="A glowing red capsule" aria-controls="style-panel" aria-selected="false" tabindex="-1">Classic</button>
+              </div>
+
+              <div class="spec-body">
+                <div class="spec-controls">
+                  <div role="tabpanel" id="style-panel" aria-labelledby="tab-wave" class="spec-desc">
+                    <h4><span id="style-name">Wave</span> <span class="spec-default" id="style-default">Default</span></h4>
+                    <p id="style-desc">Bars that follow your voice</p>
+                  </div>
+
+                  <div class="pos">
+                    <div class="pos-row">
+                      <p class="pos-label" id="pos-label-v">Top or bottom</p>
+                      <div class="pos-buttons" role="group" aria-labelledby="pos-label-v">
+                        <button type="button" class="pos-btn" data-vpos="top" aria-pressed="false">Top</button>
+                        <button type="button" class="pos-btn" data-vpos="bottom" aria-pressed="true">Bottom</button>
+                      </div>
+                    </div>
+                    <div class="pos-row">
+                      <p class="pos-label" id="pos-label-s">Side</p>
+                      <div class="pos-buttons three" role="group" aria-labelledby="pos-label-s">
+                        <button type="button" class="pos-btn" data-side="left" aria-pressed="false">Left</button>
+                        <button type="button" class="pos-btn" data-side="center" aria-pressed="true">Center</button>
+                        <button type="button" class="pos-btn" data-side="right" aria-pressed="false">Right</button>
+                      </div>
+                    </div>
+                    <p class="pos-note" id="pos-note" aria-live="polite">Shown just above the Dock, in the middle.</p>
+                  </div>
+                </div>
+
+                <div class="screen" id="screen" role="group" aria-label="Screen preview. Click a spot to move the indicator there." data-style="wave" data-vpos="bottom" data-side="center">
+                  <div class="spec-slot" aria-hidden="true">
+                    <div class="sp sp-wave pill-dark" data-s="wave"><i style="--h:30%"></i><i style="--h:45%"></i><i style="--h:60%"></i><i style="--h:75%"></i><i style="--h:100%"></i><i style="--h:75%"></i><i style="--h:60%"></i><i style="--h:45%"></i><i style="--h:30%"></i></div>
+                    <div class="sp sp-orb pill-dark round" data-s="orb" hidden><span></span></div>
+                    <div class="sp sp-line pill-dark" data-s="line" hidden><svg viewBox="0 0 68 24" preserveAspectRatio="none"><path id="line-path" d="M0 12 L68 12" /></svg></div>
+                    <div class="sp sp-dots pill-dark" data-s="dots" hidden><i></i><i></i><i></i><i></i><i></i></div>
+                    <div class="sp sp-pulse pill-dark" data-s="pulse" hidden><svg viewBox="0 0 136 24" aria-hidden="true"><path d="M0 12 H20 L24 4 L28 20 L32 12 H68 M68 12 H88 L92 4 L96 20 L100 12 H136"/></svg></div>
+                    <div class="sp sp-equalizer pill-dark" data-s="equalizer" hidden><i style="--h:55%;--i:0"></i><i style="--h:85%;--i:1"></i><i style="--h:40%;--i:2"></i><i style="--h:100%;--i:3"></i><i style="--h:70%;--i:4"></i><i style="--h:90%;--i:5"></i><i style="--h:50%;--i:6"></i></div>
+                    <div class="sp sp-spectrum pill-dark" data-s="spectrum" hidden><i style="--h:35%;--i:0;--c:#528fff"></i><i style="--h:45%;--i:1;--c:#6788ff"></i><i style="--h:55%;--i:2;--c:#7c81ff"></i><i style="--h:70%;--i:3;--c:#9279ff"></i><i style="--h:85%;--i:4;--c:#a772ff"></i><i style="--h:100%;--i:5;--c:#bd6bff"></i><i style="--h:85%;--i:6;--c:#ca6df1"></i><i style="--h:70%;--i:7;--c:#d76fe2"></i><i style="--h:55%;--i:8;--c:#e471d4"></i><i style="--h:45%;--i:9;--c:#f273c6"></i><i style="--h:35%;--i:10;--c:#ff75b8"></i></div>
+                    <div class="sp sp-twin pill-dark" data-s="twin" hidden><svg viewBox="0 0 136 24" aria-hidden="true"><path class="a" d="M0 12 C8.5 2 25.5 2 34 12 C42.5 22 59.5 22 68 12 C76.5 2 93.5 2 102 12 C110.5 22 127.5 22 136 12"/><path class="b" d="M0 12 C8.5 2 25.5 2 34 12 C42.5 22 59.5 22 68 12 C76.5 2 93.5 2 102 12 C110.5 22 127.5 22 136 12"/></svg></div>
+                    <div class="sp sp-meter pill-dark" data-s="meter" hidden><span class="track"><span class="fill"></span></span></div>
+                    <div class="sp sp-pixels pill-dark" data-s="pixels" hidden><i style="--c:#ff75b8;--i:3"></i><i style="--c:#ff75b8;--i:4"></i><i style="--c:#ff75b8;--i:5"></i><i style="--c:#ff75b8;--i:6"></i><i style="--c:#ff75b8;--i:7"></i><i style="--c:#ff75b8;--i:8"></i><i style="--c:#ff75b8;--i:9"></i><i style="--c:#ff75b8;--i:10"></i><i style="--c:#ff75b8;--i:11"></i><i style="--c:#d36ee7;--i:2"></i><i style="--c:#d36ee7;--i:3"></i><i style="--c:#d36ee7;--i:4"></i><i style="--c:#d36ee7;--i:5"></i><i style="--c:#d36ee7;--i:6"></i><i style="--c:#d36ee7;--i:7"></i><i style="--c:#d36ee7;--i:8"></i><i style="--c:#d36ee7;--i:9"></i><i style="--c:#d36ee7;--i:10"></i><i style="--c:#9977ff;--i:1"></i><i style="--c:#9977ff;--i:2"></i><i style="--c:#9977ff;--i:3"></i><i style="--c:#9977ff;--i:4"></i><i style="--c:#9977ff;--i:5"></i><i style="--c:#9977ff;--i:6"></i><i style="--c:#9977ff;--i:7"></i><i style="--c:#9977ff;--i:8"></i><i style="--c:#9977ff;--i:9"></i><i style="--c:#528fff;--i:0"></i><i style="--c:#528fff;--i:1"></i><i style="--c:#528fff;--i:2"></i><i style="--c:#528fff;--i:3"></i><i style="--c:#528fff;--i:4"></i><i style="--c:#528fff;--i:5"></i><i style="--c:#528fff;--i:6"></i><i style="--c:#528fff;--i:7"></i><i style="--c:#528fff;--i:8"></i></div>
+                    <div class="sp sp-ripple pill-dark round" data-s="ripple" hidden><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><b></b></div>
+                    <div class="sp sp-halo pill-dark round" data-s="halo" hidden><i></i></div>
+                    <div class="sp sp-blob pill-dark round" data-s="blob" hidden><i></i></div>
+                    <div class="sp sp-comet pill-dark round" data-s="comet" hidden><i></i></div>
+                    <div class="sp sp-dot pill-dark round" data-s="dot" hidden><i></i></div>
+                    <div class="sp sp-aurora pill-dark" data-s="aurora" hidden><i style="top:3px;--c:#528fff"></i><i style="top:8.5px;--c:#bd6bff"></i><i style="top:14px;--c:#ff75b8"></i></div>
+                    <div class="sp sp-classic classic-pill" data-s="classic" hidden><span class="cap"></span></div>
+                  </div>
+                  <button type="button" class="spot" data-x="left" data-y="top" aria-label="Top left" aria-pressed="false"></button>
+                  <button type="button" class="spot" data-x="center" data-y="top" aria-label="Top center" aria-pressed="false"></button>
+                  <button type="button" class="spot" data-x="right" data-y="top" aria-label="Top right" aria-pressed="false"></button>
+                  <button type="button" class="spot" data-x="left" data-y="bottom" aria-label="Bottom left" aria-pressed="false"></button>
+                  <button type="button" class="spot" data-x="center" data-y="bottom" aria-label="Bottom center" aria-pressed="true"></button>
+                  <button type="button" class="spot" data-x="right" data-y="bottom" aria-label="Bottom right" aria-pressed="false"></button>
+                </div>
+              </div>
+            </div>
+            <p class="spec-foot">Click a spot on the screen to move the indicator there. It appears on whichever display your pointer is on. You can also change it from the Dictation menu.</p>
+          </article>
+
+          <!-- Modes -->
+          <article class="card reveal">
+            <div class="card-head">
+              <span class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+              </span>
+              <h3>Modes</h3>
+            </div>
+            <p>Word replacements that apply only in the apps and websites you choose. One spelling in your work chat, another in your code editor.</p>
+          </article>
+
+          <!-- Profile -->
+          <article class="card reveal">
+            <div class="card-head">
+              <span class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+              </span>
+              <h3>Your profile</h3>
+            </div>
+            <p>Words dictated, speaking speed, time saved compared with typing, streaks, and the apps you dictate in most.</p>
+            <div class="bars14" aria-hidden="true">
+              <i style="--h:30%"></i><i style="--h:55%"></i><i style="--h:40%"></i><i style="--h:70%"></i><i style="--h:35%"></i><i style="--h:20%"></i><i style="--h:60%"></i>
+              <i style="--h:80%"></i><i style="--h:45%"></i><i style="--h:65%"></i><i style="--h:90%"></i><i style="--h:50%"></i><i style="--h:75%"></i><i style="--h:100%"></i>
+            </div>
+          </article>
+
+          <!-- Sounds -->
+          <article class="card reveal">
+            <div class="card-head">
+              <span class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+              </span>
+              <h3>Sounds</h3>
+            </div>
+            <p>Start and stop sounds in seven themes, with a volume setting. On by default, and easy to turn off.</p>
+          </article>
+
+          <!-- Commands -->
+          <article class="card reveal">
+            <div class="card-head">
+              <span class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
+              </span>
+              <h3>Commands</h3>
+            </div>
+            <p>Optional and off by default. Say a phrase to open an app or a website, press a key, or start and stop dictation or notes. You can add your own phrases.</p>
+          </article>
+
+          <!-- History -->
+          <article class="card reveal">
+            <div class="card-head">
+              <span class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              </span>
+              <h3>History</h3>
+            </div>
+            <p>Each dictation is saved on your Mac, searchable and easy to copy. Keep it for 24 hours, 7 days (the default), 30 days or forever, or turn it off.</p>
+          </article>
+
+          <!-- Native -->
+          <article class="card reveal">
+            <div class="card-head">
+              <span class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg>
+              </span>
+              <h3>Native and light</h3>
+            </div>
+            <p>A real Mac app, not a web wrapper. It lives in the menu bar, can open at login, and its window can be light, dark, or follow macOS.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bangla + English -->
+    <section class="section section-tint" id="bangla" aria-labelledby="bangla-title">
+      <div class="wrap split">
+        <div class="split-copy">
+          <p class="eyebrow reveal">Bangla + English</p>
+          <h2 class="reveal" id="bangla-title">Talk the way you <span class="grad">actually talk.</span></h2>
+          <p class="sub reveal">
+            Most dictation tools make you pick one language. Hello cuts your speech into short pieces of about 1.5 to 3 seconds,
+            works out the language of each piece, and sends it to the right speech model. Then it joins the text back together in order.
+          </p>
+          <ul class="ticks reveal">
+            <li><strong>Switch mid-sentence.</strong> English with Bangla phrases, or Bangla with English words, in one dictation.</li>
+            <li><strong>Word-level checks.</strong> Bangla words inside an English stretch are found with word timings and the Mac's spell checker, then transcribed again with the Bangla model.</li>
+            <li><strong>You choose.</strong> Auto-detect, English only, or Bangla only. Turn on Bangla + English in Settings → Dictation → Languages.</li>
+            <li><strong>Help tune it.</strong> “Help tune Bangla” is off by default. When you turn it on, Hello saves up to 100 dictations on your Mac, to tune detection to real speech. Nothing is uploaded.</li>
+          </ul>
+          <p class="note reveal">Mixed speech is still being tuned, so results will vary. The examples on the right show how the pieces fit together. They are not a benchmark.</p>
+        </div>
+
+        <div class="pipeline reveal">
+          <div class="pipe-row">
+            <span class="pipe-label">You say</span>
+            <div class="pipe-wave" aria-hidden="true">
+              <span class="seg en"></span><span class="seg bn"></span><span class="seg en"></span><span class="seg bn"></span>
+            </div>
+          </div>
+          <div class="pipe-row">
+            <span class="pipe-label">Hello splits it</span>
+            <div class="pipe-pieces" aria-hidden="true">
+              <span class="piece en">EN</span><span class="piece bn">বাংলা</span><span class="piece en">EN</span><span class="piece bn">বাংলা</span>
+            </div>
+          </div>
+          <div class="pipe-row two">
+            <div class="model en"><span class="model-dot" aria-hidden="true"></span>English model<small>Gives word timings</small></div>
+            <div class="model bn"><span class="model-dot" aria-hidden="true"></span>Bangla model<small>Fine-tuned for Bangla</small></div>
+          </div>
+          <div class="pipe-row">
+            <span class="pipe-label">Hello types (example)</span>
+            <p class="pipe-out bn-text" id="mix-out" aria-live="polite">আজকের <span class="en-word">meeting</span> টা বিকেল ৩টায়, <span class="en-word">please</span> সবাইকে জানিয়ে দিও।</p>
+          </div>
+          <div class="mix-examples" role="tablist" aria-label="Examples">
+            <button type="button" role="tab" id="mix-0" data-mix="0" aria-selected="true" tabindex="0">Bangla → English</button>
+            <button type="button" role="tab" id="mix-1" data-mix="1" aria-selected="false" tabindex="-1">English → Bangla</button>
+            <button type="button" role="tab" id="mix-2" data-mix="2" aria-selected="false" tabindex="-1">All Bangla</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Notetaker -->
+    <section class="section" id="notetaker" aria-labelledby="notetaker-title">
+      <div class="wrap split split-rev">
+        <div class="split-copy">
+          <p class="eyebrow reveal">Notetaker</p>
+          <h2 class="reveal" id="notetaker-title">Meeting notes that know <span class="grad">who said what.</span></h2>
+          <p class="sub reveal">
+            When a call starts, Hello offers to take notes. If you say yes, it transcribes the meeting live on your Mac.
+            No bot joins the call.
+          </p>
+          <ul class="ticks reveal">
+            <li><strong>Works with your calls.</strong> Common meeting apps, calls in browser tabs, and chat-app calls and huddles.</li>
+            <li><strong>Who spoke.</strong> An on-device voice model tells speakers apart. Name someone once and Hello recognizes their voice in later meetings. You can turn this off.</li>
+            <li><strong>Where and when.</strong> Platform, app, browser profile and meeting link. With calendar access (off by default), the matching event's title and attendees too.</li>
+            <li><strong>Everything in one place.</strong> Transcript, Overview, Notes and Summary tabs. Copy as Markdown, or move a meeting to the Trash.</li>
+          </ul>
+          <div class="platforms reveal" aria-label="What Notetaker recognizes">
+            <span>Meeting apps</span><span>Browser calls</span><span>Chat-app calls</span><span>Calendar (optional)</span>
+          </div>
+        </div>
+
+        <div class="meeting reveal" aria-label="Example meeting transcript">
+          <div class="mac-window">
+            <div class="mac-bar">
+              <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+              <span class="mac-title">Notetaker</span>
+            </div>
+            <div class="meet-body">
+              <div class="meet-head">
+                <div>
+                  <h4>Weekly product sync</h4>
+                  <p>Video call · 32 min · 3 people</p>
+                </div>
+                <span class="live"><span aria-hidden="true"></span>Live</span>
+              </div>
+              <div class="meet-tabs" aria-hidden="true">
+                <span class="on">Transcript</span><span>Overview</span><span>Notes</span><span>Summary</span>
+              </div>
+              <div class="transcript">
+                <div class="line" style="--c:#ff8e3c"><span class="who">Rafi</span><span class="t">00:42</span><p>Let's start with the launch checklist. Is the website ready?</p></div>
+                <div class="line" style="--c:#4fb3ff"><span class="who">Nadia</span><span class="t">00:48</span><p>Almost. Screenshots are done, I just need the final copy.</p></div>
+                <div class="line" style="--c:#b07cff"><span class="who">You</span><span class="t">01:03</span><p>Great, I'll send it after this call.</p></div>
+                <div class="line typing" style="--c:#ff8e3c"><span class="who">Rafi</span><span class="t">01:10</span><p><span class="dots-typing" aria-label="Rafi is speaking"><i></i><i></i><i></i></span></p></div>
+              </div>
+              <div class="meet-cards">
+                <div><span>WHERE</span><strong>Browser call</strong><small>Work profile</small></div>
+                <div><span>PEOPLE</span><strong>3 speakers</strong><small>2 recognized</small></div>
+                <div><span>CALENDAR</span><strong>Product sync</strong><small>10:00 – 10:30</small></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Privacy -->
+    <section class="section section-tint" id="privacy" aria-labelledby="privacy-title">
+      <div class="wrap">
+        <div class="privacy reveal">
+          <div class="shield" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>
+          </div>
+          <p class="eyebrow">Privacy</p>
+          <h2 id="privacy-title">Your voice never leaves your Mac.</h2>
+          <p class="sub">Audio is turned into text on your Mac, and nothing is uploaded. There are no accounts, no tracking and no cloud AI. Hello goes online only to download the speech models you choose and to check for updates.</p>
+          <div class="privacy-grid">
+            <div><strong>On your Mac</strong><span>Speech, language detection and speaker recognition all run locally.</span></div>
+            <div><strong>No accounts</strong><span>No sign-up, no email, no API keys. Open it and talk.</span></div>
+            <div><strong>No analytics</strong><span>The app has no analytics or telemetry.</span></div>
+            <div><strong>Off until you turn it on</strong><span>Calendar access and Help tune Bangla are off by default. Meeting voice recognition can be turned off.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Requirements and setup -->
+    <section class="section" id="setup" aria-labelledby="requirements-title">
+      <div class="wrap split split-even">
+        <div class="reveal">
+          <p class="eyebrow">Requirements</p>
+          <h2 id="requirements-title">Made for Mac.</h2>
+          <p class="sub">Hello is a native Mac app. It is for Macs with Apple silicon, and it is not available for other computers or phones.</p>
+          <ul class="req">
+            <li>
+              <span class="req-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg></span>
+              <div><strong>Apple silicon</strong><span>M1 or newer</span></div>
+            </li>
+            <li>
+              <span class="req-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+              <div><strong>macOS 15 Sequoia or later</strong><span>Check Apple menu → About This Mac</span></div>
+            </li>
+            <li>
+              <span class="req-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
+              <div><strong>Disk space</strong><span>About 0.7 GB for English. About 1.7 GB with the Bangla model and the language detector.</span></div>
+            </li>
+            <li>
+              <span class="req-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12a7 7 0 0 1 14 0M9 12a3 3 0 0 1 6 0M12 15v4"/></svg></span>
+              <div><strong>Internet, once</strong><span>To download speech models and for updates. Dictation works offline after that.</span></div>
+            </li>
+          </ul>
+
+          <h3 class="models-title">Speech models</h3>
+          <p class="models-note">Each model downloads once, from inside Hello, and runs on your Mac. Download only what you use.</p>
+          <div class="table-wrap">
+            <table class="models">
+              <thead>
+                <tr><th scope="col">Model</th><th scope="col">Used for</th><th scope="col">Size</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>English</td><td>English dictation, with word timings</td><td>730 MB</td></tr>
+                <tr><td>Bangla</td><td>Bangla dictation</td><td>886 MB</td></tr>
+                <tr><td>Other languages (25)</td><td>Dictation in 25 languages</td><td>740 MB</td></tr>
+                <tr><td>Other languages (100)</td><td>Dictation in about 100 languages</td><td>886 MB</td></tr>
+                <tr><td>Language detector</td><td>Finds the language of each piece in Auto-detect</td><td>85 MB</td></tr>
+                <tr><td>Meeting speakers</td><td>Tells meeting speakers apart</td><td>28 MB</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="reveal">
+          <p class="eyebrow">Getting started</p>
+          <h2 id="setup-title">Ready in two minutes.</h2>
+          <ol class="setup">
+            <li><strong>Download Hello</strong>, open <code>Hello.dmg</code>, and drag Hello into Applications.</li>
+            <li><strong>Open Hello</strong> from Applications. The first time, macOS may ask you to confirm. See <a class="inline-link" href="#first-launch">opening Hello the first time</a>.</li>
+            <li><strong>Grant permissions</strong> when asked: Microphone to hear you, Input Monitoring to see the Option key, and Accessibility to paste text. Calendar is optional.</li>
+            <li><strong>Download a speech model</strong> from the setup screen.</li>
+            <li><strong>Click into any text field</strong>, hold <kbd>⌥ Option</kbd>, speak, and let go.</li>
+            <li><strong>For Bangla:</strong> open Settings → Dictation → Languages, turn on Bangla + English, and download the Bangla model.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq" aria-labelledby="faq-title">
+      <div class="wrap narrow">
+        <header class="section-head reveal">
+          <p class="eyebrow">FAQ</p>
+          <h2 id="faq-title">Questions, answered.</h2>
+        </header>
+        <div class="faq">
+          <details class="reveal">
+            <summary>Is Hello really free?</summary>
+            <p>Yes. Hello is free to download and use, and it is released under the MIT license. There are no paid plans, no trials and no ads.</p>
+          </details>
+          <details class="reveal">
+            <summary>Is Hello open source?</summary>
+            <p>Yes. All of Hello's code, every release and this website are on <a href="https://github.com/dhruba-datta/hello" rel="noopener">GitHub</a>. You can read how it works, build it yourself, report a problem or suggest a change.</p>
+          </details>
+          <details class="reveal">
+            <summary>Why does macOS warn me the first time I open Hello?</summary>
+            <p>Hello is signed with its own certificate, but it is not notarized by Apple, so macOS asks you to confirm once. Open System Settings → Privacy &amp; Security, scroll down, and click Open Anyway next to Hello. Updates install from inside Hello, so you normally only need to do this once.</p>
+          </details>
+          <details class="reveal">
+            <summary>How do updates work?</summary>
+            <p>Hello checks for a new version once a day. When one is ready, Hello shows what's new. Confirm, and it downloads, installs and reopens itself. You can also check at any time from the menu bar icon → Check for Updates, or in Settings → General → About.</p>
+          </details>
+          <details class="reveal">
+            <summary>Does it work without internet?</summary>
+            <p>Yes. After you download the speech models you need, dictation and meeting notes work offline.</p>
+          </details>
+          <details class="reveal">
+            <summary>Does it work on Windows, phones or Intel Macs?</summary>
+            <p>Not right now. Hello is for Macs with Apple silicon (M1 or newer) running macOS 15 or later.</p>
+          </details>
+          <details class="reveal">
+            <summary>Which apps can I dictate into?</summary>
+            <p>Any app with a text field: email, chat, notes, documents, your code editor, and browser pages. Hello pastes the text where your cursor is.</p>
+          </details>
+          <details class="reveal">
+            <summary>How well does it handle Bangla?</summary>
+            <p>Hello has a speech model fine-tuned for Bangla, and it can switch between Bangla and English inside one dictation. Mixed speech is still being tuned. If you want to help, turn on “Help tune Bangla”. It keeps recordings on your Mac only.</p>
+          </details>
+          <details class="reveal">
+            <summary>Does a bot join my meetings?</summary>
+            <p>No. Notetaker records and transcribes on your Mac, and nothing joins the call. The notes prompt also reminds you to let others know you're recording.</p>
+          </details>
+          <details class="reveal">
+            <summary>Where is my data stored?</summary>
+            <p>Settings, history, models and meeting notes are kept in the <code>voice-control</code> folder inside <code>~/Library/Application Support</code>. You can delete any dictation or meeting from inside Hello.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- Download -->
+    <section class="section cta-section" id="download" aria-labelledby="download-title">
+      <div class="wrap">
+        <div class="cta reveal">
+          <div class="cta-glow" aria-hidden="true"></div>
+          <img class="cta-icon" src="assets/icon-256.png" alt="" width="112" height="112" />
+          <h2 id="download-title">Get Hello for Mac.</h2>
+          <p class="sub">Free. For Macs with Apple silicon, running macOS 15 or later.</p>
+          <div class="cta-actions">
+            <!-- /download redirects to the latest Hello.dmg release (see _redirects). -->
+            <a class="btn btn-primary btn-large" href="/download" id="download-btn">
+              <svg class="apple" viewBox="0 0 17 20" aria-hidden="true"><path d="M14.1 10.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9C3.6 4.7 2 5.8 1.1 7.3c-1.8 3.2-.5 7.9 1.3 10.5.9 1.3 1.9 2.7 3.2 2.6 1.3-.1 1.8-.8 3.4-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.2-2.6 1-1.5 1.4-2.9 1.4-3-.1 0-2.8-1.1-2.9-4.2zM11.6 3c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.1 1.2.1 2.3-.6 3.1-1.5z"/></svg>
+              Download for Mac
+            </a>
+            <span class="soon-note">Version 1.0.3 · Hello.dmg · Updates itself</span>
+          </div>
+          <div class="first-launch" id="first-launch">
+            <h3>Opening Hello the first time</h3>
+            <ol>
+              <li>Open <strong>Hello.dmg</strong> and drag <strong>Hello</strong> into <strong>Applications</strong>.</li>
+              <li>Open Hello. If macOS says it can't check the app, click <strong>Done</strong>.</li>
+              <li>Open <strong>System Settings → Privacy &amp; Security</strong>, scroll down, and click <strong>Open Anyway</strong> next to Hello. Confirm if asked.</li>
+            </ol>
+            <p>Updates install from inside Hello, so you normally only need to do this once.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <div class="footer-brand">
+        <a class="brand" href="#top">
+          <img src="assets/icon-256.png" alt="" width="26" height="26" />
+          <span>Hello</span>
+        </a>
+        <p>Free, private and open-source voice dictation and meeting notes for Mac.</p>
+      </div>
+      <nav class="footer-nav" aria-label="Footer">
+        <div>
+          <p class="footer-head">Explore</p>
+          <a href="#features">Features</a>
+          <a href="#bangla">Bangla and English</a>
+          <a href="#notetaker">Notetaker</a>
+          <a href="#privacy">Privacy</a>
+        </div>
+        <div>
+          <p class="footer-head">Get Hello</p>
+          <a href="/download">Download for Mac</a>
+          <a href="#setup">Setup and requirements</a>
+          <a href="#faq">FAQ</a>
+          <a href="https://github.com/dhruba-datta/hello" rel="noopener">Source code on GitHub</a>
+          <a href="https://github.com/dhruba-datta/hello/releases" rel="noopener">All releases</a>
+        </div>
+      </nav>
+      <div class="footer-org">
+        <span>A project by</span>
+        <a href="https://minutecampus.com" rel="noopener">Minute Campus</a>
+      </div>
+    </div>
+    <div class="wrap footer-bottom">
+      <span>© <span id="year">2026</span> Minute Campus. Hello is released under the MIT License.</span>
+      <a href="#top">Back to top ↑</a>
+    </div>
+  </footer>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

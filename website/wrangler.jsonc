@@ -1,0 +1,9 @@
+// Hello website: static files served by Cloudflare at hello.minutecampus.com.
+// Deploy from this folder with: npx --yes wrangler@4 deploy
+{
+  "name": "hello-website",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "." },
+  "workers_dev": false,
+  "routes": [{ "pattern": "hello.minutecampus.com", "custom_domain": true }]
+}

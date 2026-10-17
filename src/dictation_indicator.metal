@@ -222,6 +222,295 @@ void draw_dots(thread float4 &result, float2 point, float shape, float clarity,
     composite(result, content_color(uniforms), dot * brightness * shape * clarity);
 }
 
+// Blue to violet to pink, the palette shared by the colorful styles.
+float3 palette(float t) {
+    float3 blue = float3(0.32, 0.56, 1.0);
+    float3 violet = float3(0.74, 0.42, 1.0);
+    float3 pink = float3(1.0, 0.46, 0.72);
+    t = clamp(t, 0.0, 1.0);
+    return t < 0.5 ? mix(blue, violet, t * 2.0) : mix(violet, pink, t * 2.0 - 1.0);
+}
+
+// Coverage of a horizontal trace y(x) of the given half thickness, using its
+// slope so steep parts keep their width.
+float trace_coverage(float2 point, float y, float slope, float half_thickness) {
+    float distance = abs(point.y - y) / sqrt(1.0 + slope * slope) - half_thickness;
+    return coverage(distance, max(fwidth(distance), 0.3));
+}
+
+float pulse_shape(float d) {
+    return exp2(-pow(d / 1.5, 2.0))
+        - 0.35 * exp2(-pow((d + 3.6) / 1.7, 2.0))
+        - 0.45 * exp2(-pow((d - 3.2) / 1.7, 2.0));
+}
+
+// Pulse: a heartbeat trace whose spike travels across and grows with the
+// voice; it shrinks to a small blip while transcribing.
+void draw_pulse(thread float4 &result, float2 point, float shape, float clarity,
+                constant Uniforms &uniforms) {
+    float processing = clamp(uniforms.processing, 0.0, 1.0);
+    float level = voice_level(uniforms);
+    float half_span = uniforms.width * 0.5 - 8.0;
+    float x = clamp(point.x, -half_span, half_span);
+    float head = mix(-half_span, half_span, fract(uniforms.time * mix(0.9, 1.3, processing)));
+    float amplitude = (uniforms.height * 0.5 - 4.0) * mix(max(level, 0.14), 0.2, processing);
+    float y = -amplitude * pulse_shape(x - head);
+    float slope = -amplitude * (pulse_shape(x - head + 0.25) - pulse_shape(x - head - 0.25)) * 2.0;
+    float trace = trace_coverage(float2(x, point.y), y, slope, 0.7) * step(abs(point.x), half_span + 0.8);
+    float trail = 0.35 + 0.65 * exp2(-abs(x - head) / 9.0);
+    composite(result, content_color(uniforms), trace * trail * shape * clarity);
+}
+
+// Equalizer: bars standing on a baseline that rise with the voice and settle
+// into a low, sweeping row while transcribing.
+void draw_equalizer(thread float4 &result, float2 point, float shape, float clarity,
+                    constant Uniforms &uniforms) {
+    const float bar_count = 7.0;
+    const float bar_width = 3.6;
+    const float bar_pitch = 6.6;
+    float processing = clamp(uniforms.processing, 0.0, 1.0);
+    float time = uniforms.time;
+    float level = voice_level(uniforms);
+    float half_slots = (bar_count - 1.0) * 0.5;
+    float slot = clamp(round(point.x / bar_pitch), -half_slots, half_slots);
+    float jitter = 0.5 + 0.5 * sin(time * 11.0 + slot * 2.3);
+    float speaking = max(0.12 + 0.06 * sin(time * 2.5 + slot), level * (0.45 + 0.55 * jitter));
+    float glint = shimmer(slot * bar_pitch, uniforms.width * 0.5, time);
+    float amount = mix(speaking, 0.1 + 0.3 * glint, processing);
+    float base = uniforms.height * 0.5 - 6.0;
+    float max_height = uniforms.height - 12.0;
+    float bar_height = max(bar_width, max_height * amount);
+    float bar_distance = rounded_box(
+        point - float2(slot * bar_pitch, base - bar_height * 0.5),
+        float2(bar_width * 0.5, bar_height * 0.5),
+        bar_width * 0.45);
+    float bar = coverage(bar_distance, max(fwidth(bar_distance), 0.3)) * shape;
+    composite(result, content_color(uniforms), bar * mix(0.95, 0.4 + 0.6 * glint, processing) * clarity);
+}
+
+// Spectrum: thin bars colored blue to pink; while transcribing the colors
+// slide along a low row.
+void draw_spectrum(thread float4 &result, float2 point, float shape, float clarity,
+                   constant Uniforms &uniforms) {
+    const float bar_count = 11.0;
+    const float bar_width = 2.2;
+    const float bar_pitch = 4.4;
+    float processing = clamp(uniforms.processing, 0.0, 1.0);
+    float time = uniforms.time;
+    float level = voice_level(uniforms);
+    float half_slots = (bar_count - 1.0) * 0.5;
+    float slot = clamp(round(point.x / bar_pitch), -half_slots, half_slots);
+    float envelope = 1.0 - abs(slot) / half_slots * 0.6;
+    float jitter = 0.6 + 0.4 * sin(time * 13.0 + slot * 1.3);
+    float speaking = max(0.1 + 0.05 * sin(time * 3.0 + slot), level * envelope * jitter);
+    float amount = mix(speaking, 0.12 + 0.06 * sin(time * 6.0 + slot * 0.8), processing);
+    float bar_height = 2.2 + (uniforms.height - 10.2) * amount;
+    float bar_distance = rounded_box(
+        point - float2(slot * bar_pitch, 0.0),
+        float2(bar_width * 0.5, bar_height * 0.5),
+        bar_width * 0.5);
+    float bar = coverage(bar_distance, max(fwidth(bar_distance), 0.3)) * shape;
+    float hue = (slot + half_slots) / (2.0 * half_slots);
+    hue = fract(hue + processing * time * 0.5);
+    float3 color = mix(palette(hue), float3(0.86, 0.78, 1.0), clamp(uniforms.post_processing, 0.0, 1.0) * 0.4);
+    composite(result, color, bar * clarity);
+}
+
+// Twin: a blue and a pink trace moving against each other; they flatten
+// while transcribing.
+void draw_twin(thread float4 &result, float2 point, float shape, float clarity,
+               constant Uniforms &uniforms) {
+    float processing = clamp(uniforms.processing, 0.0, 1.0);
+    float time = uniforms.time;
+    float level = voice_level(uniforms);
+    float half_span = uniforms.width * 0.5 - 9.0;
+    float x = clamp(point.x, -half_span, half_span);
+    float taper = 1.0 - pow(abs(x) / half_span, 2.0);
+    float amplitude = (uniforms.height * 0.5 - 5.0) * max(level, 0.1) * mix(1.0, 0.25, processing) * taper;
+    for (int index = 0; index < 2; index++) {
+        float direction = index == 0 ? 1.0 : -1.0;
+        float phase = x * 0.36 - direction * time * 7.0 + float(index) * 1.6;
+        float y = amplitude * sin(phase);
+        float slope = amplitude * 0.36 * cos(phase);
+        float trace = trace_coverage(float2(x, point.y), y, slope, 0.65) * step(abs(point.x), half_span + 0.7);
+        float3 color = index == 0 ? float3(0.36, 0.62, 1.0) : float3(1.0, 0.48, 0.74);
+        composite(result, color, trace * 0.92 * shape * clarity);
+    }
+}
+
+// Meter: a track that fills with loudness; while transcribing a short
+// segment glides back and forth.
+void draw_meter(thread float4 &result, float2 point, float shape, float clarity,
+                constant Uniforms &uniforms) {
+    float processing = clamp(uniforms.processing, 0.0, 1.0);
+    float level = voice_level(uniforms);
+    float half_track = uniforms.width * 0.5 - 7.0;
+    const float half_thickness = 2.2;
+    float track_distance = rounded_box(point, float2(half_track, half_thickness), half_thickness);
+    float track = coverage(track_distance, max(fwidth(track_distance), 0.3));
+    composite(result, float3(1.0), track * 0.14 * shape * clarity);
+
+    float fill_end = -half_track + 2.0 * half_track * max(level, 0.05);
+    float fill_half = (fill_end + half_track) * 0.5;
+    float fill_distance = rounded_box(point - float2(-half_track + fill_half, 0.0),
+                                      float2(max(fill_half, half_thickness), half_thickness), half_thickness);
+    float fill = coverage(fill_distance, max(fwidth(fill_distance), 0.3));
+    float3 fill_color = palette((point.x + half_track) / (2.0 * half_track));
+    composite(result, fill_color, fill * (1.0 - processing) * shape * clarity);
+
+    float segment = half_track * 0.3;
+    float center = sin(uniforms.time * 3.0) * (half_track - segment);
+    float glide_distance = rounded_box(point - float2(center, 0.0), float2(segment, half_thickness), half_thickness);
+    float glide = coverage(glide_distance, max(fwidth(glide_distance), 0.3));
+    composite(result, content_color(uniforms), glide * processing * shape * clarity);
+}
+
+// Pixels: a grid of small lights lit from the bottom like a level meter; a
+// diagonal wave runs through it while transcribing.
+void draw_pixels(thread float4 &result, float2 point, float shape, float clarity,
+                 constant Uniforms &uniforms) {
+    const float columns = 9.0;
+    const float rows = 4.0;
+    const float pitch = 4.6;
+    float processing = clamp(uniforms.processing, 0.0, 1.0);
+    float time = uniforms.time;
+    float level = voice_level(uniforms);
+    float half_columns = (columns - 1.0) * 0.5;
+    float half_rows = (rows - 1.0) * 0.5;
+    float column = clamp(round(point.x / pitch), -half_columns, half_columns);
+    float row = clamp(round(point.y / pitch), -half_rows, half_rows);
+    float height_from_bottom = half_rows - row;
+    float envelope = 1.0 - abs(column) / half_columns * 0.5;
+    float jitter = 0.55 + 0.45 * sin(time * 12.0 + column * 1.9);
+    float lit_rows = max(0.6, level * envelope * jitter * rows);
+    float speaking = step(height_from_bottom + 0.5, lit_rows);
+    float wave = 0.5 + 0.5 * sin(time * 7.0 - (column + height_from_bottom) * 0.9);
+    float lit = mix(speaking, smoothstep(0.6, 1.0, wave), processing);
+    float cell_distance = rounded_box(point - float2(column * pitch, row * pitch), float2(1.5, 1.5), 0.6);
+    float cell = coverage(cell_distance, max(fwidth(cell_distance), 0.3));
+    float3 color = palette(height_from_bottom / (rows - 1.0));
+    composite(result, float3(1.0), cell * 0.12 * shape * clarity);
+    composite(result, color, cell * lit * 0.95 * shape * clarity);
+}
+
+// Ripple: rings that spread from a center dot, faster and brighter with the
+// voice; they slow down while transcribing.
+void draw_ripple(thread float4 &result, float2 point, float shape, float clarity,
+                 constant Uniforms &uniforms) {
+    float processing = clamp(uniforms.processing, 0.0, 1.0);
+    float level = voice_level(uniforms);
+    float radius = length(point);
+    float max_radius = uniforms.height * 0.5 - 3.0;
+    float speed = mix(0.5 + 0.9 * level, 0.35, processing);
+    for (int index = 0; index < 3; index++) {
+        float progress = fract(uniforms.time * speed + float(index) / 3.0);
+        float ring_distance = abs(radius - progress * max_radius) - 0.6;
+        float ring = coverage(ring_distance, max(fwidth(ring_distance), 0.3));
+        float strength = (1.0 - progress) * mix(0.35 + 0.65 * level, 0.5, processing);
+        composite(result, mix(float3(0.55, 0.75, 1.0), content_color(uniforms), 0.5), ring * strength * shape * clarity);
+    }
+    float core_radius = mix(2.4 + 2.2 * level, 2.2 + 0.6 * sin(uniforms.time * 5.0), processing);
+    float core_distance = radius - core_radius;
+    float core = coverage(core_distance, max(fwidth(core_distance), 0.3));
+    composite(result, content_color(uniforms), core * shape * clarity);
+}
+
+// Halo: a colored ring that thickens and glows with the voice; while
+// transcribing only a bright arc keeps turning.
+void draw_halo(thread float4 &result, float2 point, float shape, float clarity,
+               constant Uniforms &uniforms) {
+    float processing = clamp(uniforms.processing, 0.0, 1.0);
+    float time = uniforms.time;
+    float level = voice_level(uniforms);
+    float angle = atan2(point.y, point.x);
+    float ring_radius = uniforms.height * 0.5 - 6.5;
+    float thickness = mix(0.7 + 2.4 * level, 0.8, processing);
+    float ring_distance = abs(length(point) - ring_radius) - thickness;
+    float ring = coverage(ring_distance, max(fwidth(ring_distance), 0.3));
+    float hue = 0.5 + 0.5 * sin(angle + time * 2.0);
+    float3 color = mix(palette(hue), float3(0.86, 0.78, 1.0), clamp(uniforms.post_processing, 0.0, 1.0) * 0.5);
+    float sweep = fract((angle + time * 5.0) / 6.2831853);
+    float arc = mix(1.0, smoothstep(0.4, 1.0, sweep), processing);
+    composite(result, color, glow(ring_distance, 1.5 + 2.5 * level) * 0.35 * arc * shape * clarity);
+    composite(result, color, ring * arc * shape * clarity);
+}
+
+// Blob: a soft, color-shifting shape whose edge wobbles with the voice.
+void draw_blob(thread float4 &result, float2 point, float shape, float clarity,
+               constant Uniforms &uniforms) {
+    float processing = clamp(uniforms.processing, 0.0, 1.0);
+    float time = uniforms.time;
+    float level = voice_level(uniforms);
+    float angle = atan2(point.y, point.x);
+    float base = mix(6.0 + 4.5 * level, 5.0, processing);
+    float wobble = sin(angle * 3.0 + time * 2.2) + 0.6 * sin(angle * 5.0 - time * 3.1);
+    float edge = base * (1.0 + 0.12 * wobble * mix(0.4 + level, 0.3, processing));
+    float blob_distance = length(point) - edge;
+    float swirl = 0.5 + 0.5 * sin(angle * 2.0 + time * 1.8);
+    float3 color = mix(palette(swirl), float3(0.86, 0.78, 1.0), clamp(uniforms.post_processing, 0.0, 1.0) * 0.5);
+    composite(result, color, glow(blob_distance, 2.5 + 2.0 * level) * 0.4 * shape * clarity);
+    float body = coverage(blob_distance, max(fwidth(blob_distance), 0.35));
+    float3 lit = mix(color, float3(1.0), 0.3 * smoothstep(edge, 0.0, length(point + float2(1.5, 1.5))));
+    composite(result, lit, body * shape * clarity);
+}
+
+// Comet: a light circling a faint track, faster and larger as you talk.
+void draw_comet(thread float4 &result, float2 point, float shape, float clarity,
+                constant Uniforms &uniforms) {
+    float processing = clamp(uniforms.processing, 0.0, 1.0);
+    float level = voice_level(uniforms);
+    float track_radius = uniforms.height * 0.5 - 6.0;
+    float radius = length(point);
+    float angle = atan2(point.y, point.x);
+    float track_distance = abs(radius - track_radius) - 0.5;
+    float track = coverage(track_distance, max(fwidth(track_distance), 0.3));
+    composite(result, float3(1.0), track * 0.12 * shape * clarity);
+    float head_angle = uniforms.time * mix(2.5 + 6.0 * level, 4.0, processing);
+    float behind = fract((head_angle - angle) / 6.2831853);
+    float tail = exp2(-behind * 7.0);
+    float tail_distance = abs(radius - track_radius) - (0.5 + 1.0 * tail);
+    float trail = coverage(tail_distance, max(fwidth(tail_distance), 0.3));
+    composite(result, palette(0.3 + 0.5 * level), trail * tail * shape * clarity);
+    float2 head = track_radius * float2(cos(head_angle), sin(head_angle));
+    float head_distance = length(point - head) - (1.6 + 1.2 * level * (1.0 - processing));
+    float head_dot = coverage(head_distance, max(fwidth(head_distance), 0.3));
+    composite(result, content_color(uniforms), head_dot * shape * clarity);
+}
+
+// Dot: one small dot that grows with the voice and breathes while
+// transcribing.
+void draw_dot(thread float4 &result, float2 point, float shape, float clarity,
+              constant Uniforms &uniforms) {
+    float processing = clamp(uniforms.processing, 0.0, 1.0);
+    float level = voice_level(uniforms);
+    float radius = mix(2.2 + 3.0 * level, 2.4 + 0.8 * sin(uniforms.time * 4.0), processing);
+    float dot_distance = length(point) - radius;
+    composite(result, float3(0.55, 0.75, 1.0), glow(dot_distance, 1.5 + 2.0 * level) * 0.45 * shape * clarity);
+    float dot = coverage(dot_distance, max(fwidth(dot_distance), 0.3));
+    composite(result, content_color(uniforms), dot * shape * clarity);
+}
+
+// Aurora: bands of color flowing through the pill, brighter and taller with
+// the voice; they dim to a slow drift while transcribing.
+void draw_aurora(thread float4 &result, float2 point, float shape, float clarity,
+                 constant Uniforms &uniforms) {
+    float processing = clamp(uniforms.processing, 0.0, 1.0);
+    float time = uniforms.time;
+    float level = voice_level(uniforms);
+    float energy = mix(0.25 + 0.75 * level, 0.3, processing);
+    float half_span = uniforms.width * 0.5 - 4.0;
+    float edge_fade = 1.0 - smoothstep(half_span * 0.6, half_span, abs(point.x));
+    for (int index = 0; index < 3; index++) {
+        float offset = float(index) * 2.1;
+        float center = sin(point.x * 0.13 + time * (1.6 + 0.4 * float(index)) + offset)
+            * (uniforms.height * 0.22) * (0.4 + energy);
+        float spread = 1.6 + 2.6 * energy;
+        float band = exp2(-pow((point.y - center) / spread, 2.0));
+        float hue = fract(point.x / (uniforms.width) + 0.5 + time * 0.1 + float(index) * 0.33);
+        composite(result, palette(hue), band * energy * 0.7 * edge_fade * shape * clarity);
+    }
+}
+
 // The modern styles share a dark pill (a circle for Orb) with a soft shadow,
 // hairline border, and a brief bloom when a dictation finishes.
 float4 modern_indicator(float2 point, constant Uniforms &uniforms) {
@@ -241,15 +530,24 @@ float4 modern_indicator(float2 point, constant Uniforms &uniforms) {
     composite(result, float3(0.0), shadow * 0.35 * (1.0 - shape));
     composite(result, float3(0.035, 0.035, 0.04), shape * 0.94);
 
-    int style = int(round(uniforms.indicator_style));
-    if (style == 2) {
-        draw_orb(result, point, shape, clarity, uniforms);
-    } else if (style == 3) {
-        draw_line(result, point, shape, clarity, uniforms);
-    } else if (style == 4) {
-        draw_dots(result, point, shape, clarity, uniforms);
-    } else {
-        draw_wave(result, point, shape, clarity, uniforms);
+    // Indices match IndicatorStyle::encoded in app_settings.rs.
+    switch (int(round(uniforms.indicator_style))) {
+        case 2: draw_orb(result, point, shape, clarity, uniforms); break;
+        case 3: draw_line(result, point, shape, clarity, uniforms); break;
+        case 4: draw_dots(result, point, shape, clarity, uniforms); break;
+        case 5: draw_pulse(result, point, shape, clarity, uniforms); break;
+        case 6: draw_equalizer(result, point, shape, clarity, uniforms); break;
+        case 7: draw_spectrum(result, point, shape, clarity, uniforms); break;
+        case 8: draw_twin(result, point, shape, clarity, uniforms); break;
+        case 9: draw_meter(result, point, shape, clarity, uniforms); break;
+        case 10: draw_pixels(result, point, shape, clarity, uniforms); break;
+        case 11: draw_ripple(result, point, shape, clarity, uniforms); break;
+        case 12: draw_halo(result, point, shape, clarity, uniforms); break;
+        case 13: draw_blob(result, point, shape, clarity, uniforms); break;
+        case 14: draw_comet(result, point, shape, clarity, uniforms); break;
+        case 15: draw_dot(result, point, shape, clarity, uniforms); break;
+        case 16: draw_aurora(result, point, shape, clarity, uniforms); break;
+        default: draw_wave(result, point, shape, clarity, uniforms); break;
     }
 
     float stroke = coverage(abs(distance) - 0.4, 0.38 + lifecycle_softness * 0.3);

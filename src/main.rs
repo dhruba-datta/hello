@@ -188,6 +188,12 @@ enum Command {
         /// Show the sidebar update action without starting the updater.
         #[arg(long)]
         update_available: bool,
+        /// Indicator style for the dictation-hud preview, such as "pulse".
+        #[arg(long)]
+        indicator_style: Option<String>,
+        /// Indicator place for the dictation-hud preview, such as "bottom-left".
+        #[arg(long)]
+        indicator_place: Option<String>,
     },
     /// Listen and transcribe until interrupted.
     Listen {
@@ -409,8 +415,14 @@ fn main() -> Result<()> {
             open_history_retention,
             confirm_release_microphone,
             update_available,
+            indicator_style,
+            indicator_place,
         } => {
             if matches!(target, AppPreviewTarget::DictationHud) {
+                app_settings::preview_indicator(
+                    indicator_style.as_deref(),
+                    indicator_place.as_deref(),
+                )?;
                 return meeting_watcher::run(
                     &SHUTDOWN,
                     meeting_watcher::Launch::DictationHudPreview,

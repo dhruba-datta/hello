@@ -383,6 +383,7 @@ pub(crate) fn render_transcription_picker<T: TranscriptionPickerDelegate>(
                                 .h_full()
                                 .p_4()
                                 .overflow_y_scroll()
+                                .rounded_bl(px(PANEL_RADIUS + 1.0))
                                 .bg(tone(SIDEBAR))
                                 .border_r_1()
                                 .border_color(tone(LINE))

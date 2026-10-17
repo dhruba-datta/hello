@@ -17,6 +17,7 @@ static INDICATOR_STYLE: AtomicU8 = AtomicU8::new(0);
 static COLOR_THEME: AtomicU8 = AtomicU8::new(0);
 // 0 = the style's natural place, 1 = top, 2 = bottom.
 static INDICATOR_POSITION: AtomicU8 = AtomicU8::new(0);
+static INDICATOR_ALIGNMENT: AtomicU8 = AtomicU8::new(1);
 static SMART_EDITING: AtomicU8 = AtomicU8::new(smart_editing_bits(SmartEditing {
     remove_fillers: true,
     scratch_that: true,
@@ -570,10 +571,10 @@ pub enum RecordingAudioBehavior {
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum IndicatorStyle {
-    /// The original glowing capsule.
-    #[default]
+    /// A glowing red capsule that shrinks to a dot while transcribing.
     Classic,
-    /// A dark pill with voice-reactive bars.
+    /// A dark pill with voice-reactive bars; the default.
+    #[default]
     Wave,
     /// A glowing, color-shifting orb that pulses with the voice.
     Orb,
@@ -581,10 +582,53 @@ pub enum IndicatorStyle {
     Line,
     /// Five dots that bounce with the voice.
     Dots,
+    /// A heartbeat trace with a travelling spike.
+    Pulse,
+    /// Bars standing on a baseline, like a music equalizer.
+    Equalizer,
+    /// Wave bars colored from blue to pink.
+    Spectrum,
+    /// Two colored traces moving against each other.
+    Twin,
+    /// A level bar that fills with loudness.
+    Meter,
+    /// A grid of small lights, lit from the bottom like a meter.
+    Pixels,
+    /// Rings that spread from the center.
+    Ripple,
+    /// A colored ring that thickens with the voice.
+    Halo,
+    /// A soft, wobbling, color-shifting shape.
+    Blob,
+    /// A light that circles a track, faster when louder.
+    Comet,
+    /// A single small dot that grows with the voice.
+    Dot,
+    /// Flowing bands of color.
+    Aurora,
 }
 
 impl IndicatorStyle {
-    pub const ALL: [Self; 5] = [Self::Classic, Self::Wave, Self::Orb, Self::Line, Self::Dots];
+    /// In the order the Appearance page and the Dictation menu show them.
+    pub const ALL: [Self; 17] = [
+        Self::Wave,
+        Self::Orb,
+        Self::Line,
+        Self::Dots,
+        Self::Pulse,
+        Self::Equalizer,
+        Self::Spectrum,
+        Self::Twin,
+        Self::Meter,
+        Self::Pixels,
+        Self::Ripple,
+        Self::Halo,
+        Self::Blob,
+        Self::Comet,
+        Self::Dot,
+        Self::Aurora,
+        Self::Classic,
+    ];
 
     pub const fn label(self) -> &'static str {
         match self {
@@ -593,19 +637,45 @@ impl IndicatorStyle {
             Self::Orb => "Orb",
             Self::Line => "Line",
             Self::Dots => "Dots",
+            Self::Pulse => "Pulse",
+            Self::Equalizer => "Equalizer",
+            Self::Spectrum => "Spectrum",
+            Self::Twin => "Twin",
+            Self::Meter => "Meter",
+            Self::Pixels => "Pixels",
+            Self::Ripple => "Ripple",
+            Self::Halo => "Halo",
+            Self::Blob => "Blob",
+            Self::Comet => "Comet",
+            Self::Dot => "Dot",
+            Self::Aurora => "Aurora",
         }
     }
 
     pub const fn description(self) -> &'static str {
         match self {
-            Self::Classic => "The original glowing capsule",
+            Self::Classic => "A glowing red capsule",
             Self::Wave => "Bars that follow your voice",
             Self::Orb => "A glowing orb that pulses",
             Self::Line => "A smooth sound-wave line",
             Self::Dots => "Five dots that bounce",
+            Self::Pulse => "A heartbeat line that jumps as you talk",
+            Self::Equalizer => "Bars that rise from the bottom",
+            Self::Spectrum => "Colorful bars, blue to pink",
+            Self::Twin => "Two colored waves that weave",
+            Self::Meter => "A level bar that fills as you speak",
+            Self::Pixels => "A grid of lights, like a sound meter",
+            Self::Ripple => "Rings that spread as you speak",
+            Self::Halo => "A ring of light that grows",
+            Self::Blob => "A soft shape that wobbles",
+            Self::Comet => "A light that circles faster as you talk",
+            Self::Dot => "One small dot that grows",
+            Self::Aurora => "Colors that flow like northern lights",
         }
     }
 
+    /// The index the indicator shader switches on. It never changes, whatever the
+    /// display order in `ALL`; 0 is Classic, which the shader draws separately.
     pub(crate) const fn encoded(self) -> u8 {
         match self {
             Self::Classic => 0,
@@ -613,17 +683,30 @@ impl IndicatorStyle {
             Self::Orb => 2,
             Self::Line => 3,
             Self::Dots => 4,
+            Self::Pulse => 5,
+            Self::Equalizer => 6,
+            Self::Spectrum => 7,
+            Self::Twin => 8,
+            Self::Meter => 9,
+            Self::Pixels => 10,
+            Self::Ripple => 11,
+            Self::Halo => 12,
+            Self::Blob => 13,
+            Self::Comet => 14,
+            Self::Dot => 15,
+            Self::Aurora => 16,
         }
     }
 
     fn decode(value: u8) -> Self {
-        match value {
-            1 => Self::Wave,
-            2 => Self::Orb,
-            3 => Self::Line,
-            4 => Self::Dots,
-            _ => Self::Classic,
+        let mut index = 0;
+        while index < Self::ALL.len() {
+            if Self::ALL[index].encoded() == value {
+                return Self::ALL[index];
+            }
+            index += 1;
         }
+        Self::Wave
     }
 }
 
@@ -640,22 +723,53 @@ pub enum IndicatorPosition {
 impl IndicatorPosition {
     pub const ALL: [Self; 2] = [Self::Top, Self::Bottom];
 
-    /// Classic belongs by the notch; the modern pills sit above the Dock.
-    pub const fn natural(style: IndicatorStyle) -> Self {
-        match style {
-            IndicatorStyle::Classic => Self::Top,
-            _ => Self::Bottom,
-        }
-    }
-
-    pub fn resolve(chosen: Option<Self>, style: IndicatorStyle) -> Self {
-        chosen.unwrap_or(Self::natural(style))
+    /// Every style starts just above the Dock until the user picks a place.
+    pub fn resolve(chosen: Option<Self>) -> Self {
+        chosen.unwrap_or(Self::Bottom)
     }
 
     pub const fn label(self) -> &'static str {
         match self {
             Self::Top => "Top",
             Self::Bottom => "Bottom",
+        }
+    }
+}
+
+/// Where along the top or bottom edge the dictation HUD sits.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IndicatorAlignment {
+    Left,
+    #[default]
+    Center,
+    Right,
+}
+
+impl IndicatorAlignment {
+    pub const ALL: [Self; 3] = [Self::Left, Self::Center, Self::Right];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Left => "Left",
+            Self::Center => "Center",
+            Self::Right => "Right",
+        }
+    }
+
+    const fn encoded(self) -> u8 {
+        match self {
+            Self::Left => 0,
+            Self::Center => 1,
+            Self::Right => 2,
+        }
+    }
+
+    const fn decode(value: u8) -> Self {
+        match value {
+            0 => Self::Left,
+            2 => Self::Right,
+            _ => Self::Center,
         }
     }
 }
@@ -759,6 +873,7 @@ pub struct AppSettings {
     pub indicator_style: IndicatorStyle,
     /// None keeps each style in its natural place until the user picks one.
     pub indicator_position: Option<IndicatorPosition>,
+    pub indicator_alignment: IndicatorAlignment,
     pub theme: ColorTheme,
     pub smart_editing: SmartEditing,
     /// Hide Hello from the menu bar; the Dock icon then stays visible so the app remains reachable.
@@ -790,8 +905,9 @@ impl Default for AppSettings {
             sound_theme: crate::feedback::SoundTheme::Classic,
             microphone: None,
             recording_audio_behavior: RecordingAudioBehavior::DoNothing,
-            indicator_style: IndicatorStyle::Classic,
+            indicator_style: IndicatorStyle::Wave,
             indicator_position: None,
+            indicator_alignment: IndicatorAlignment::Center,
             theme: ColorTheme::Auto,
             smart_editing: SmartEditing::default(),
             show_menu_bar_icon: true,
@@ -1041,6 +1157,7 @@ impl AppSettings {
             },
             Ordering::Relaxed,
         );
+        INDICATOR_ALIGNMENT.store(self.indicator_alignment.encoded(), Ordering::Relaxed);
         SMART_EDITING.store(smart_editing_bits(self.smart_editing), Ordering::Relaxed);
         DOUBLE_TAP_LOCK.store(self.double_tap_lock, Ordering::Relaxed);
         DOUBLE_TAP_ONLY.store(
@@ -1218,17 +1335,66 @@ pub fn color_theme() -> ColorTheme {
         .unwrap_or_default()
 }
 
+/// Style and place forced by `hello preview dictation-hud`, so a preview never
+/// changes the saved settings.
+static PREVIEW_INDICATOR: OnceLock<(
+    Option<IndicatorStyle>,
+    Option<(IndicatorPosition, IndicatorAlignment)>,
+)> = OnceLock::new();
+
+/// Parses `style` ("pulse") and `place` ("bottom-left", "top", "right") for the HUD preview.
+pub fn preview_indicator(style: Option<&str>, place: Option<&str>) -> Result<()> {
+    let style = style
+        .map(|name| {
+            serde_json::from_value::<IndicatorStyle>(serde_json::Value::String(name.into()))
+                .map_err(|_| eyre!("unknown indicator style: {name}"))
+        })
+        .transpose()?;
+    let place = place
+        .map(|place| {
+            let mut position = IndicatorPosition::Bottom;
+            let mut alignment = IndicatorAlignment::Center;
+            for part in place.split('-') {
+                match part {
+                    "top" => position = IndicatorPosition::Top,
+                    "bottom" => position = IndicatorPosition::Bottom,
+                    "left" => alignment = IndicatorAlignment::Left,
+                    "center" => alignment = IndicatorAlignment::Center,
+                    "right" => alignment = IndicatorAlignment::Right,
+                    _ => return Err(eyre!("unknown indicator place: {place}")),
+                }
+            }
+            Ok((position, alignment))
+        })
+        .transpose()?;
+    let _ = PREVIEW_INDICATOR.set((style, place));
+    Ok(())
+}
+
 pub fn indicator_style() -> IndicatorStyle {
+    if let Some((Some(style), _)) = PREVIEW_INDICATOR.get() {
+        return *style;
+    }
     IndicatorStyle::decode(INDICATOR_STYLE.load(Ordering::Relaxed))
 }
 
-pub fn indicator_position(style: IndicatorStyle) -> IndicatorPosition {
+pub fn indicator_position() -> IndicatorPosition {
+    if let Some((_, Some((position, _)))) = PREVIEW_INDICATOR.get() {
+        return *position;
+    }
     let chosen = match INDICATOR_POSITION.load(Ordering::Relaxed) {
         1 => Some(IndicatorPosition::Top),
         2 => Some(IndicatorPosition::Bottom),
         _ => None,
     };
-    IndicatorPosition::resolve(chosen, style)
+    IndicatorPosition::resolve(chosen)
+}
+
+pub fn indicator_alignment() -> IndicatorAlignment {
+    if let Some((_, Some((_, alignment)))) = PREVIEW_INDICATOR.get() {
+        return *alignment;
+    }
+    IndicatorAlignment::decode(INDICATOR_ALIGNMENT.load(Ordering::Relaxed))
 }
 
 pub fn commands_enabled() -> bool {
@@ -1611,17 +1777,19 @@ mod tests {
     }
 
     #[test]
-    fn indicator_style_defaults_to_classic_and_round_trips() {
+    fn indicator_style_defaults_to_wave_and_round_trips() {
         let old: AppSettings = serde_json::from_str("{}").unwrap();
-        assert_eq!(old.indicator_style, IndicatorStyle::Classic);
+        assert_eq!(old.indicator_style, IndicatorStyle::Wave);
         assert_eq!(old.indicator_position, None);
-        assert_eq!(
-            IndicatorPosition::resolve(None, IndicatorStyle::Classic),
-            IndicatorPosition::Top
-        );
-        assert_eq!(
-            IndicatorPosition::resolve(None, IndicatorStyle::Wave),
-            IndicatorPosition::Bottom
+        assert_eq!(IndicatorPosition::resolve(None), IndicatorPosition::Bottom);
+        assert_eq!(old.indicator_alignment, IndicatorAlignment::Center);
+        let mut codes = IndicatorStyle::ALL.map(IndicatorStyle::encoded);
+        codes.sort_unstable();
+        assert!(
+            codes
+                .iter()
+                .enumerate()
+                .all(|(index, code)| usize::from(*code) == index)
         );
         assert!(old.show_menu_bar_icon);
         assert!(old.profile_name.is_empty());

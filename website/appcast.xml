@@ -5,18 +5,16 @@
     <link>https://hello.minutecampus.com/appcast.xml</link>
     <language>en</language>
     <item>
-      <title>Hello 1.0.6</title>
-      <pubDate>Sat, 17 Oct 2026 19:10:18 +0000</pubDate>
-      <sparkle:version>7</sparkle:version>
-      <sparkle:shortVersionString>1.0.6</sparkle:shortVersionString>
+      <title>Hello 1.0.7</title>
+      <pubDate>Sat, 17 Oct 2026 19:34:53 +0000</pubDate>
+      <sparkle:version>8</sparkle:version>
+      <sparkle:shortVersionString>1.0.7</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[<h2>Hello 1.0.6</h2><ul><li>Hello Type: suggestions while you type, in any app. Turn it on in the new Typing page (⌘3). Hello quietly learns your own words and phrases as you type and from your dictations; when it is confident about the next word it shows it in grey next to the cursor. Press Tab to accept, or keep typing to ignore it.</li>
-<li>A fresh install suggests nothing at first: Hello only suggests what it has seen you write.</li>
-<li>Everything stays on your Mac. Password fields and secure keyboard entry are never read or learned, and "Forget everything" moves what Hello learned to the Trash.</li>
-<li>Keyboard shortcuts moved: Typing is ⌘3, Appearance to Notetaker are ⌘4 to ⌘9; History is in the View menu.</li></ul>]]></description>
-      <enclosure url="https://github.com/dhruba-datta/hello/releases/download/v1.0.6/Hello.dmg"
-        length="31134515" type="application/octet-stream"
-        sparkle:edSignature="McUGFKEglXCD5GQKvzrKF9jzkh1U/i4g9YDsminL2n5D2kEWGFIL1Q2FM+xGGPcvg7zgt9fKQil6eZbUUo+JDw==" />
+      <description><![CDATA[<h2>Hello 1.0.7</h2><ul><li>Typing page redesigned: what Hello has learned is shown as four tiles (words, sentences, Tab accepts, last learned) with a clear status line, and the switches sit at the edge of their cards.</li>
+<li>Shorter text in the tiles so nothing is cut off on smaller windows.</li></ul>]]></description>
+      <enclosure url="https://github.com/dhruba-datta/hello/releases/download/v1.0.7/Hello.dmg"
+        length="31137665" type="application/octet-stream"
+        sparkle:edSignature="N563pXAn39lbY9UBpIx9OqUGwbQeNDl1eEUtRi5L4TBGnlJSBf9reXgqoby3rkQ4Qy+8lNXjrxZDNYCTKez7Ag==" />
     </item>
   </channel>
 </rss>

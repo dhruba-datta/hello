@@ -5,17 +5,17 @@
     <link>https://hello.minutecampus.com/appcast.xml</link>
     <language>en</language>
     <item>
-      <title>Hello 1.0.8</title>
-      <pubDate>Sat, 17 Oct 2026 20:09:54 +0000</pubDate>
-      <sparkle:version>9</sparkle:version>
-      <sparkle:shortVersionString>1.0.8</sparkle:shortVersionString>
+      <title>Hello 1.0.9</title>
+      <pubDate>Wed, 21 Oct 2026 12:20:36 +0000</pubDate>
+      <sparkle:version>10</sparkle:version>
+      <sparkle:shortVersionString>1.0.9</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[<h2>Hello 1.0.8</h2><ul><li>Notetaker: when macOS refuses to let Hello hear a call even though the switch looks on, the Allow button now clears Hello's old permission entry and asks macOS again. No more removing and re-adding Hello by hand.</li>
-<li>A meeting note that failed for this reason explains it in plain words and has the same Allow button.</li>
-<li>Hello shows its window again after macOS quits and reopens it following a permission change, instead of coming back silently.</li></ul>]]></description>
-      <enclosure url="https://github.com/dhruba-datta/hello/releases/download/v1.0.8/Hello.dmg"
-        length="31135661" type="application/octet-stream"
-        sparkle:edSignature="ilKdgR6dclSxep7GOJj6JW0yc12LcvC9EMD984Fu9kbUMIs1BokTKUF//xEWDUkBwxpmi7ycdwhTvgh9jFw9BQ==" />
+      <description><![CDATA[<h2>Hello 1.0.9</h2><ul><li>With the Dock and menu bar icons both off, ⌘Q now only closes the window. Hello keeps running in the background and your shortcut keeps working.</li>
+<li>To quit Hello completely in that case, open it again and click Quit Hello on the General page.</li>
+<li>Hello now shows up in the macOS Apps library.</li></ul>]]></description>
+      <enclosure url="https://github.com/dhruba-datta/hello/releases/download/v1.0.9/Hello.dmg"
+        length="31121065" type="application/octet-stream"
+        sparkle:edSignature="EHpuXjrZDNmsYxdWw5WuA6ewB2ZihQYE9FyrhbIn9gfoCoEvrptPz+y197IJHXt3KfkkHDAMUFC3Qt5Nw4G3CA==" />
     </item>
   </channel>
 </rss>

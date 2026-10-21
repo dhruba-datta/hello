@@ -9736,7 +9736,7 @@ fn format_count(count: usize) -> String {
 
 /// Hello's own release number. The engine underneath keeps its upstream
 /// version (CARGO_PKG_VERSION) for local API and SDK compatibility.
-pub(crate) const APP_VERSION: &str = "1.0.8";
+pub(crate) const APP_VERSION: &str = "1.0.9";
 
 fn theme_index(theme: ColorTheme) -> usize {
     ColorTheme::ALL

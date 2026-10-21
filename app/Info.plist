@@ -24,8 +24,6 @@
 	<string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>15.0</string>
-	<key>LSUIElement</key>
-	<true/>
 	<key>NSAccessibilityUsageDescription</key>
 	<string>Hello uses Accessibility to paste dictation into the app you are using and to read meeting window titles.</string>
 	<key>NSAppleEventsUsageDescription</key>

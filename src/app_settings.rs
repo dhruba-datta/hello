@@ -38,6 +38,7 @@ static SETTINGS_TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 static TRANSCRIPTION_SELECTION: OnceLock<RwLock<RuntimeTranscriptionSelection>> = OnceLock::new();
 static MICROPHONE_SELECTION: OnceLock<RwLock<RuntimeMicrophoneSelection>> = OnceLock::new();
 static MEETING_DETECTION: AtomicBool = AtomicBool::new(true);
+static ICONS_HIDDEN: AtomicBool = AtomicBool::new(false);
 static MEETING_AUDIO_RETENTION: AtomicU8 = AtomicU8::new(0);
 
 #[derive(Default)]
@@ -1137,6 +1138,10 @@ impl AppSettings {
         crate::feedback::set_volume(self.sound_effect_volume.clamp(0.0, 1.0));
         crate::feedback::set_theme(self.sound_theme);
         MEETING_DETECTION.store(self.notetaker.detect_meetings, Ordering::Relaxed);
+        ICONS_HIDDEN.store(
+            !self.show_menu_bar_icon && !self.show_dock_icon,
+            Ordering::Relaxed,
+        );
         MEETING_CALENDAR.store(self.notetaker.use_calendar, Ordering::Relaxed);
         LANGUAGE_SAMPLES.store(self.multilingual.collect_samples, Ordering::Relaxed);
         MEETING_VOICES.store(self.notetaker.recognize_voices, Ordering::Relaxed);
@@ -1461,6 +1466,13 @@ pub fn set_hotkey_capture_active(active: bool) {
 /// menu bar icons; only a failed menu bar install forces the Dock icon on.
 pub fn dock_icon_visible(show_dock_icon: bool, status_item_available: bool) -> bool {
     show_dock_icon || !status_item_available
+}
+
+/// Whether the user turned off both the Dock and menu bar icons. Nothing on
+/// screen then shows that Hello is running, so ⌘Q only closes the window and
+/// the shortcut keeps working; Quit Hello on the General page really quits.
+pub fn icons_hidden() -> bool {
+    ICONS_HIDDEN.load(Ordering::Relaxed)
 }
 
 pub fn set_dock_icon_visible(visible: bool) {

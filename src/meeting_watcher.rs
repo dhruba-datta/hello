@@ -424,7 +424,26 @@ pub fn run(shutdown: &'static AtomicBool, launch: Launch) -> Result<()> {
         cx.on_action(move |_: &crate::app_window::CloseWindow, cx| {
             close_window(close_app_window.borrow_mut().take(), cx)
         });
-        cx.on_action(|_: &crate::app_window::QuitApplication, cx| cx.quit());
+        let quit_app_window = app_window.clone();
+        cx.on_action(move |_: &crate::app_window::QuitApplication, cx| {
+            if stays_in_background_on_quit(
+                crate::app_settings::icons_hidden(),
+                crate::status_item::installed(),
+            ) {
+                // ⌘Q reaches this handler while the window is busy dispatching
+                // it, so the window can only be closed once the action is done.
+                let app_window = quit_app_window.clone();
+                cx.defer(move |cx| close_window(app_window.borrow_mut().take(), cx));
+                crate::notice::show(
+                    crate::desktop_ui::Glyph::Power,
+                    "Hello is still running",
+                    "Your shortcut keeps working. To quit Hello, open it again and choose \
+                     Quit Hello on the General page.",
+                );
+            } else {
+                cx.quit();
+            }
+        });
         cx.on_action(|_: &crate::app_window::CheckForUpdates, _| {
             crate::sparkle::check_for_updates()
         });
@@ -593,6 +612,9 @@ pub fn run(shutdown: &'static AtomicBool, launch: Launch) -> Result<()> {
         crate::desktop_ui::apply_theme(settings.theme, cx.window_appearance());
         crate::status_item::update_transcription(&settings, &transcription_preparation.status());
         crate::status_item::set_visible(show_menu_bar_icon);
+        // Info.plist leaves out LSUIElement so the Apps library lists Hello, so
+        // this is where a hidden Dock icon is hidden. GPUI creates NSApp in run(),
+        // so nothing earlier can change the policy.
         crate::app_settings::set_dock_icon_visible(crate::app_settings::dock_icon_visible(
             show_dock_icon,
             status_actions.is_some(),
@@ -1428,6 +1450,13 @@ impl Render for NoticeWindow {
     }
 }
 
+/// With both icons hidden, quitting would leave no sign that Hello stopped, so
+/// ⌘Q and the Quit menu item close the window instead. A failed menu bar install
+/// keeps the Dock icon on, and then Quit works as usual.
+fn stays_in_background_on_quit(icons_hidden: bool, status_item_installed: bool) -> bool {
+    icons_hidden && status_item_installed
+}
+
 fn close_window<T: Render + 'static>(window: Option<WindowHandle<T>>, cx: &mut App) {
     if let Some(window) = window {
         window
@@ -1598,6 +1627,14 @@ pub fn probe() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn quit_keeps_hello_running_only_when_both_icons_are_hidden() {
+        assert!(stays_in_background_on_quit(true, true));
+        assert!(!stays_in_background_on_quit(false, true));
+        assert!(!stays_in_background_on_quit(true, false));
+        assert!(!stays_in_background_on_quit(false, false));
+    }
 
     #[test]
     fn dockless_startup_stays_quiet_only_when_setup_and_menu_bar_are_ready() {

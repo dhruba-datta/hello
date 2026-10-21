@@ -4512,6 +4512,7 @@ impl AppWindow {
         let menu_bar_position = self.menu_bar_icon_toggle.render_position(window);
         let dock_position = self.dock_icon_toggle.render_position(window);
         let both_hidden = !self.settings.show_menu_bar_icon && !self.settings.show_dock_icon;
+        let preview = self.preview;
         settings_pane_titled(
             "General",
             "general-scroll",
@@ -4597,7 +4598,21 @@ impl AppWindow {
                                     .text_size(px(12.0))
                                     .text_color(rgb(TEXT_SOFT))
                                     .bg(rgb(0x1f2a3d))
-                                    .child("Hello runs quietly in the background. To open this window, launch Hello again from Applications or Spotlight."),
+                                    .child(div().flex_1().min_w_0().child(
+                                        "Hello runs quietly in the background, and ⌘Q only closes this window. To open it again, launch Hello from Applications or Spotlight.",
+                                    ))
+                                    .child(
+                                        compact_button("Quit Hello")
+                                            .id("quit-hello-background")
+                                            .flex_none()
+                                            .bg(tone(SURFACE_HOVER))
+                                            .cursor_pointer()
+                                            .on_click(move |_, _, cx| {
+                                                if !preview {
+                                                    cx.quit();
+                                                }
+                                            }),
+                                    ),
                             )
                         }),
                 )
